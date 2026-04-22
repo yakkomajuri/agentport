@@ -1,0 +1,218 @@
+---
+title: Configuration
+nav_title: Configuration
+---
+
+# Configuring a self-hosted AgentPort
+
+Everything below is configured via environment variables, most commonly set in the `.env` file next to `docker-compose.prod.yml`. After editing `.env`, apply changes with:
+
+```sh
+docker compose -f docker-compose.prod.yml up -d
+```
+
+## Core environment variables
+
+| Variable | Default | Notes |
+|---|---|---|
+| `DOMAIN` | *(required)* | The hostname Caddy serves and requests a cert for. |
+| `LETSENCRYPT_EMAIL` | *(required)* | Contact email Let's Encrypt uses for expiry warnings. |
+| `JWT_SECRET_KEY` | auto-generated on first boot | Signs session JWTs. If unset, the container writes one to `/data/jwt_secret` and reuses it across restarts. Set it explicitly if you want to pin or rotate it. |
+| `DATABASE_URL` | `sqlite:////data/agent_port.db` | See [Postgres](#using-postgres) below to point at a separate database. |
+| `BLOCK_SIGNUPS` | `false` | Set to `true` after creating the owner account to disable further registration. |
+| `SKIP_EMAIL_VERIFICATION` | `true` (in prod compose) | Leave as-is if you haven't configured email; set to `false` once `RESEND_API_KEY` is set. |
+| `BASE_URL` / `UI_BASE_URL` | `https://${DOMAIN}` | Usually don't touch — the compose file derives these from `DOMAIN`. |
+| `OAUTH_CALLBACK_URL` | `https://${DOMAIN}/api/auth/callback` | Must exactly match the redirect URI registered in each OAuth app. |
+
+## Backups
+
+AgentPort's persistent state lives in two Docker volumes:
+
+- `agentport_data` — SQLite database, generated JWT secret, and anything else the server writes to `/data`.
+- `caddy_data` — Let's Encrypt account key and issued certificates. Losing it only means Caddy will request fresh certs on next boot (subject to Let's Encrypt's rate limits).
+
+Your `.env` is **not** in a volume — it's a plain file in the repo clone. Back it up separately; it contains the JWT secret and OAuth credentials.
+
+### Backing up SQLite
+
+Use `sqlite3`'s online backup so you don't risk a half-written file:
+
+```sh
+docker compose -f docker-compose.prod.yml exec agentport \
+  sqlite3 /data/agent_port.db ".backup /data/backup.db"
+
+docker compose -f docker-compose.prod.yml cp \
+  agentport:/data/backup.db ./backup-$(date +%Y%m%d).db
+```
+
+A cron on the host that runs this daily and ships the file off-box (S3, rsync, restic) is the minimum viable strategy.
+
+### Restoring
+
+```sh
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml cp \
+  ./backup-20260422.db agentport:/data/agent_port.db
+docker compose -f docker-compose.prod.yml up -d
+```
+
+## Using Postgres
+
+SQLite is fine for small installs, but it's single-writer and lives on whatever disk the container's volume is on. For anything multi-user or with independent lifecycle from the app container, point AgentPort at a separate Postgres instance — **no code changes, just a connection string**.
+
+### Managed Postgres (recommended)
+
+Create a database on Supabase, Neon, RDS, Fly Postgres, etc. Set:
+
+```env
+DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@HOST:5432/agentport?sslmode=require
+```
+
+Then restart:
+
+```sh
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Migrations run automatically on boot (`alembic upgrade head`). The first start against an empty Postgres database will create all tables.
+
+### Postgres in the same compose
+
+If you'd rather run Postgres alongside AgentPort, add a service to `docker-compose.prod.yml`:
+
+```yaml
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: agentport
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: agentport
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentport"]
+      interval: 10s
+
+# ... then under the `agentport` service:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://agentport:${POSTGRES_PASSWORD}@postgres:5432/agentport
+
+# ... and at the bottom:
+volumes:
+  postgres_data:
+```
+
+Same process either way — AgentPort doesn't care whether Postgres is in-compose or external as long as the URL works.
+
+### Migrating from SQLite to Postgres
+
+There's no in-place migration. The typical path is:
+
+1. Export data from the SQLite file (`sqlite3 agent_port.db .dump > dump.sql`).
+2. Hand-translate the schema differences or restore from Alembic (run migrations on an empty Postgres, then load just the data rows).
+3. Point `DATABASE_URL` at Postgres and restart.
+
+For most installs it's simpler to start on Postgres from the beginning if you know you'll want it later.
+
+## Email (password reset, verification)
+
+Without email configured, password reset links don't work and `SKIP_EMAIL_VERIFICATION=true` is required so signups succeed. For anything beyond single-user installs, wire up Resend:
+
+```env
+RESEND_API_KEY=re_...
+EMAIL_FROM=noreply@yourdomain.com
+SKIP_EMAIL_VERIFICATION=false
+```
+
+The `EMAIL_FROM` domain needs to be verified in your Resend account.
+
+## Signup control
+
+After you create the owner account, lock the instance down:
+
+```env
+BLOCK_SIGNUPS=true
+```
+
+Further `/signup` attempts will be rejected. You can still invite users via the admin UI (future) or by temporarily flipping the flag back off.
+
+## Log rotation
+
+Docker's default JSON log driver grows unbounded. Add a `logging:` block to both services in `docker-compose.prod.yml`:
+
+```yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
+
+That caps each container's logs at ~30 MB on disk.
+
+## Resource limits
+
+On a shared host you want a runaway not to OOM the whole machine. Add under the `agentport` service:
+
+```yaml
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.0"
+```
+
+(The `deploy:` key is honored by `docker compose up` as of Compose v2 when not running under Swarm.)
+
+## Analytics
+
+Optional PostHog integration for usage metrics:
+
+```env
+POSTHOG_PROJECT_TOKEN=phc_...
+POSTHOG_HOST=https://us.i.posthog.com
+```
+
+Leave empty to disable (the default).
+
+## Google sign-in
+
+Completely independent from the Google integration (Gmail, Calendar). This is only if you want users to log into AgentPort itself via Google:
+
+```env
+GOOGLE_LOGIN_CLIENT_ID=...
+GOOGLE_LOGIN_CLIENT_SECRET=...
+```
+
+Without these set, the "Continue with Google" button still renders on the login page but returns an error when clicked.
+
+## OAuth credentials for integrations
+
+Integrations that use OAuth (GitHub, Google, Notion, etc.) each need their own client ID / secret registered in that provider's developer console, with a redirect URI matching `OAUTH_CALLBACK_URL`. Convention:
+
+```env
+OAUTH_GITHUB_CLIENT_ID=...
+OAUTH_GITHUB_CLIENT_SECRET=...
+OAUTH_GOOGLE_CLIENT_ID=...
+OAUTH_GOOGLE_CLIENT_SECRET=...
+```
+
+See [Google OAuth setup](/self-host/google-oauth-setup) for the full walk-through on the Google side (the same app covers both Gmail and Calendar).
+
+## Rotating the JWT secret
+
+Setting a new `JWT_SECRET_KEY` invalidates every existing session — all users have to log in again. Useful if you suspect the secret has leaked.
+
+```sh
+# Generate a new one
+openssl rand -hex 32
+
+# Put it in .env as JWT_SECRET_KEY=...
+docker compose -f docker-compose.prod.yml up -d
+```
+
+If you want to keep the auto-generated secret but force a rotation, delete `/data/jwt_secret` inside the volume and restart — a new one will be generated.

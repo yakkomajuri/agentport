@@ -1,0 +1,32 @@
+{
+  "name": "agentport-cli",
+  "version": "1.1.0",
+  "description": "CLI for AgentPort — universal tool gateway for AI agents",
+  "license": "MIT",
+  "homepage": "https://github.com/yakkomajuri/agent-port",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yakkomajuri/agent-port"
+  },
+  "files": ["dist"],
+  "type": "module",
+  "bin": {
+    "agentport": "./dist/index.js",
+    "ap": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "commander": "^12",
+    "chalk": "^5",
+    "@toon-format/toon": "^2"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5",
+    "tsup": "^8"
+  }
+}

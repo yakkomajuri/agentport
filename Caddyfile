@@ -1,0 +1,11 @@
+{$DOMAIN} {
+	tls {$LETSENCRYPT_EMAIL}
+
+	encode gzip zstd
+
+	# MCP endpoint uses Streamable HTTP / SSE — reverse_proxy handles streaming
+	# responses natively, nothing special required.
+	reverse_proxy agentport:4747 {
+		flush_interval -1
+	}
+}

@@ -1,0 +1,250 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ── Agent-port design tokens (konduktor design system) ── */
+:root {
+  --logo-invert-filter: none;
+  --bg: #f5f5f5;
+  --content-bg: #ffffff;
+  --surface: #f7f7f7;
+  --surface-hover: #e8e8e8;
+  --surface-selected: #efefef;
+  --border: #e0e0e0;
+  --border-strong: #d4d4d5;
+  --text: #171717;
+  --text-dim: #5d5d61;
+  --text-faint: #a3a3a8;
+  --accent: #1a1a18;
+  --input-bg: #f6f6f6;
+
+  --green: #22c55e;
+  --green-dim: #16a34a;
+  --amber: #f59e0b;
+  --red: #dc2626;
+  --blue: #2563eb;
+  --purple: #7c3aed;
+
+  --badge-blue-bg: #dbeafe;
+  --badge-blue-text: #1d4ed8;
+  --badge-blue-dot: #2563eb;
+  --badge-amber-bg: #fef3c7;
+  --badge-amber-text: #92400e;
+  --badge-amber-dot: #d97706;
+  --badge-green-bg: #dcfce7;
+  --badge-green-text: #15803d;
+  --badge-green-dot: #22c55e;
+  --badge-gray-bg: #efefef;
+  --badge-gray-text: #5d5d61;
+  --badge-gray-dot: #9ca3af;
+  --badge-red-bg: #fee2e2;
+  --badge-red-text: #991b1b;
+  --badge-red-dot: #ef4444;
+  --badge-purple-bg: #ede9fe;
+  --badge-purple-text: #6d28d9;
+  --badge-purple-dot: #a78bfa;
+
+  --code-bg: #f6f8fa;
+  --code-text: #1f2328;
+  --syn-comment: #6e7781;
+  --syn-keyword: #cf222e;
+  --syn-string: #0a3069;
+  --syn-constant: #0550ae;
+  --syn-function: #8250df;
+  --syn-tag: #116329;
+  --syn-variable: #953800;
+
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 20px 60px rgba(0, 0, 0, 0.2);
+  --card-bg: #fafafa;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03);
+  --card-shadow-hover: 0 3px 10px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+
+  /* shadcn tokens mapped to our design system */
+  --radius: 0.375rem;
+  --background: var(--content-bg);
+  --foreground: var(--text);
+  --card: var(--content-bg);
+  --card-foreground: var(--text);
+  --popover: var(--content-bg);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: var(--content-bg);
+  --secondary: var(--surface-selected);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface);
+  --muted-foreground: var(--text-dim);
+  --accent-foreground: var(--text);
+  --destructive: var(--red);
+  --input: var(--border);
+  --ring: var(--border-strong);
+}
+
+[data-theme='dark'] {
+  --logo-invert-filter: invert(1);
+  --bg: #161616;
+  --content-bg: #1a1a1a;
+  --surface: #1e1e1e;
+  --surface-hover: #2a2a2a;
+  --surface-selected: #2a2a2a;
+  --border: #303030;
+  --border-strong: #454545;
+  --text: #e4e4e0;
+  --text-dim: #a0a09a;
+  --text-faint: #787872;
+  --accent: #e4e4e0;
+  --input-bg: #2a2a2a;
+
+  --green: #34d399;
+  --green-dim: #22c55e;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --purple: #a78bfa;
+
+  --badge-blue-bg: #1e3a8a;
+  --badge-blue-text: #dbeafe;
+  --badge-blue-dot: #60a5fa;
+  --badge-amber-bg: #78350f;
+  --badge-amber-text: #fef3c7;
+  --badge-amber-dot: #fbbf24;
+  --badge-green-bg: #166534;
+  --badge-green-text: #dcfce7;
+  --badge-green-dot: #4ade80;
+  --badge-gray-bg: #374151;
+  --badge-gray-text: #f3f4f6;
+  --badge-gray-dot: #9ca3af;
+  --badge-red-bg: #7f1d1d;
+  --badge-red-text: #fee2e2;
+  --badge-red-dot: #f87171;
+  --badge-purple-bg: #6b21a8;
+  --badge-purple-text: #f3e8ff;
+  --badge-purple-dot: #d8b4fe;
+
+  --code-bg: #0d1117;
+  --code-text: #e6edf3;
+  --syn-comment: #8b949e;
+  --syn-keyword: #ff7b72;
+  --syn-string: #a5d6ff;
+  --syn-constant: #79c0ff;
+  --syn-function: #d2a8ff;
+  --syn-tag: #7ee787;
+  --syn-variable: #ffa657;
+  --card-bg: var(--surface);
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.20), 0 1px 2px rgba(0, 0, 0, 0.14);
+  --card-shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.18);
+
+  --background: var(--content-bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: var(--bg);
+  --secondary: var(--surface-hover);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-hover);
+  --muted-foreground: var(--text-dim);
+  --accent-foreground: var(--text);
+  --destructive: var(--red);
+  --input: var(--border);
+  --ring: var(--border-strong);
+}
+
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
+
+/* ── Approval page: modal + bottom sheet ── */
+.approve-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+}
+.approve-modal {
+  display: flex;
+}
+.approve-sheet {
+  display: none;
+}
+.approve-sheet-panel {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--content-bg);
+  border-radius: 16px 16px 0 0;
+  height: 80vh;
+  display: flex; flex-direction: column;
+  z-index: 101;
+  animation: sheet-up 0.3s ease forwards;
+  -webkit-overflow-scrolling: touch;
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@media (max-width: 640px) {
+  .approve-modal { display: none; }
+  .approve-sheet { display: block; }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}

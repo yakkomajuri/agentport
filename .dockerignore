@@ -1,0 +1,33 @@
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+.venv
+server/.venv
+
+# Node
+ui/node_modules
+cli/node_modules
+
+# Dev artifacts
+server/agent_port.db
+server/uploads
+**/*.egg-info
+
+# Env / secrets
+.env
+.env.*
+
+# Editor / OS
+.DS_Store
+**/.DS_Store
+.idea
+.vscode
+*.swp
+
+# Git
+.git
+.gitignore
+
+# Fly
+fly.toml

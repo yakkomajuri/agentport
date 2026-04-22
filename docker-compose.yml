@@ -1,0 +1,43 @@
+services:
+  agentport:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentport:local
+    container_name: agentport
+    ports:
+      - "4747:4747"
+    environment:
+      PORT: "4747"
+      DATABASE_URL: "sqlite:////data/agent_port.db"
+      BASE_URL: "http://localhost:4747"
+      UI_BASE_URL: "http://localhost:4747"
+      OAUTH_CALLBACK_URL: "http://localhost:4747/api/auth/callback"
+      IS_SELF_HOSTED: "true"
+      SKIP_EMAIL_VERIFICATION: "true"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - agentport_data:/data
+    command: >
+      sh -c '
+        if [ -z "$$JWT_SECRET_KEY" ]; then
+          if [ ! -f /data/jwt_secret ]; then
+            python -c "import secrets; print(secrets.token_hex(32))" > /data/jwt_secret;
+          fi;
+          export JWT_SECRET_KEY=$$(cat /data/jwt_secret);
+        fi &&
+        uv run alembic upgrade head &&
+        exec ./start.sh
+      '
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:4747/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  agentport_data:

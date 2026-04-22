@@ -1,0 +1,13 @@
+{
+    "name": "agentport-docs",
+    "version": "1.0.0",
+    "private": true,
+    "description": "AgentPort documentation site, powered by teeny.",
+    "scripts": {
+        "dev": "teeny develop",
+        "build": "teeny build"
+    },
+    "devDependencies": {
+        "teeny-cli": "^1.0.1-beta"
+    }
+}

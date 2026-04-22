@@ -1,0 +1,62 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: agentport-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: "${DOMAIN:?set DOMAIN in .env (e.g. agentport.example.com)}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL:?set LETSENCRYPT_EMAIL in .env}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - agentport
+
+  agentport:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentport:prod
+    container_name: agentport
+    restart: unless-stopped
+    expose:
+      - "4747"
+    environment:
+      PORT: "4747"
+      DATABASE_URL: "sqlite:////data/agent_port.db"
+      BASE_URL: "https://${DOMAIN}"
+      UI_BASE_URL: "https://${DOMAIN}"
+      OAUTH_CALLBACK_URL: "https://${DOMAIN}/api/auth/callback"
+      IS_SELF_HOSTED: "true"
+      SKIP_EMAIL_VERIFICATION: "true"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - agentport_data:/data
+    command: >
+      sh -c '
+        if [ -z "$$JWT_SECRET_KEY" ]; then
+          if [ ! -f /data/jwt_secret ]; then
+            python -c "import secrets; print(secrets.token_hex(32))" > /data/jwt_secret;
+          fi;
+          export JWT_SECRET_KEY=$$(cat /data/jwt_secret);
+        fi &&
+        uv run alembic upgrade head &&
+        exec ./start.sh
+      '
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:4747/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  agentport_data:
+  caddy_data:
+  caddy_config:

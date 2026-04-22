@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentPort Docs</title>
+    <meta name="color-scheme" content="light dark">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('theme');
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = stored || (prefersDark ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="/styles.css">
+    <script defer src="/highlight.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-left">
+            <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar">
+                <svg class="menu-icon menu-icon-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+                <svg class="menu-icon menu-icon-close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                </svg>
+            </button>
+            <a href="/" class="brand">
+                <img class="brand-logo brand-logo-light" src="/logos/agentport-light-mode.png" alt="" aria-hidden="true">
+                <img class="brand-logo brand-logo-dark" src="/logos/agentport-dark-mode.png" alt="" aria-hidden="true">
+                <span class="logo">AgentPort</span>
+                <span class="tagline">docs</span>
+            </a>
+        </div>
+        <div class="topbar-actions">
+            <a href="https://github.com/yakkomajuri/agentport" target="_blank" rel="noopener" class="topbar-link">GitHub</a>
+            <button id="theme-toggle" type="button" class="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+                <svg class="theme-icon theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4"></circle>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+                </svg>
+                <svg class="theme-icon theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <nav data-sidebar></nav>
+        </aside>
+        <main class="content">
+            <article id="page-content"></article>
+            <footer class="site-footer">
+                powered by <a href="https://github.com/yakkomajuri/teeny" target="_blank" rel="noopener">teeny</a>
+            </footer>
+        </main>
+    </div>
+    <div class="lightbox" id="lightbox" aria-hidden="true">
+        <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Close image">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+            </svg>
+        </button>
+        <img class="lightbox-img" id="lightbox-img" alt="">
+    </div>
+    <script>
+        (function () {
+            var path = location.pathname.replace(/\.html$/, '') || '/';
+            if (path !== '/' && path.endsWith('/')) path = path.slice(0, -1);
+            document.querySelectorAll('.sidebar nav a').forEach(function (a) {
+                if (a.getAttribute('data-path') === path) a.classList.add('active');
+            });
+
+            var btn = document.getElementById('theme-toggle');
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    var current = document.documentElement.getAttribute('data-theme') || 'light';
+                    var next = current === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', next);
+                    try { localStorage.setItem('theme', next); } catch (e) {}
+                });
+            }
+
+            if (window.matchMedia) {
+                var mq = window.matchMedia('(prefers-color-scheme: dark)');
+                var onChange = function (e) {
+                    try {
+                        if (localStorage.getItem('theme')) return;
+                    } catch (err) {}
+                    document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+                };
+                if (mq.addEventListener) mq.addEventListener('change', onChange);
+                else if (mq.addListener) mq.addListener(onChange);
+            }
+
+            var menuBtn = document.getElementById('menu-toggle');
+            var sidebar = document.getElementById('sidebar');
+            var backdrop = document.getElementById('sidebar-backdrop');
+            if (menuBtn && sidebar && backdrop) {
+                var setMenu = function (open) {
+                    sidebar.classList.toggle('open', open);
+                    backdrop.classList.toggle('open', open);
+                    menuBtn.classList.toggle('open', open);
+                    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    document.body.classList.toggle('menu-open', open);
+                };
+                menuBtn.addEventListener('click', function () {
+                    setMenu(!sidebar.classList.contains('open'));
+                });
+                backdrop.addEventListener('click', function () { setMenu(false); });
+                sidebar.querySelectorAll('a').forEach(function (a) {
+                    a.addEventListener('click', function () { setMenu(false); });
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && sidebar.classList.contains('open')) setMenu(false);
+                });
+            }
+
+            var lightbox = document.getElementById('lightbox');
+            var lightboxImg = document.getElementById('lightbox-img');
+            var lightboxClose = document.getElementById('lightbox-close');
+            if (lightbox && lightboxImg) {
+                var openLightbox = function (src, alt) {
+                    lightboxImg.src = src;
+                    lightboxImg.alt = alt || '';
+                    lightbox.classList.add('open');
+                    lightbox.setAttribute('aria-hidden', 'false');
+                    document.body.classList.add('menu-open');
+                };
+                var closeLightbox = function () {
+                    lightbox.classList.remove('open');
+                    lightbox.setAttribute('aria-hidden', 'true');
+                    document.body.classList.remove('menu-open');
+                };
+                document.querySelectorAll('#page-content img').forEach(function (img) {
+                    img.addEventListener('click', function () {
+                        openLightbox(img.currentSrc || img.src, img.alt);
+                    });
+                });
+                lightbox.addEventListener('click', function (e) {
+                    if (e.target === lightbox || e.target === lightboxImg) closeLightbox();
+                });
+                if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox();
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+    "items": [
+        {
+            "section": "Introduction",
+            "items": ["index", "getting-started", "why"]
+        },
+        {
+            "section": "Self-host",
+            "items": [
+                "self-host/install",
+                "self-host/configure",
+                "self-host/google-oauth-setup"
+            ]
+        },
+        {
+            "section": "Connect",
+            "items": ["connect/mcp", "connect/cli", "connect/skills"]
+        },
+        {
+            "section": "Agents",
+            "items": [
+                "agents/claude-code",
+                "agents/openclaw",
+                "agents/codex",
+                "agents/claude-desktop",
+                "agents/vscode",
+                "agents/cursor"
+            ]
+        }
+    ]
+}
