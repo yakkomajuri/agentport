@@ -68,6 +68,7 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
       await savePending()
     } catch (e) {
       if (isTotpChallengeError(e)) {
+        setOpen(false)
         setTotpDialogOpen(true)
       } else {
         setError(e instanceof Error ? e.message : 'Failed to save')
@@ -81,6 +82,12 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
     // Throw back to TotpCodeDialog on failure so it can surface the error
     // in its own UI (e.g. wrong code → inline message, dialog stays open).
     await savePending(code)
+  }
+
+  function handleTotpClose() {
+    setTotpDialogOpen(false)
+    setPendingMode(null)
+    setError(null)
   }
 
   useEffect(() => {
@@ -353,7 +360,7 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
         title="Confirm allow access"
         description={`Enter your authenticator code to let ${toolName} run without approval.`}
         confirmLabel="Allow"
-        onClose={() => setTotpDialogOpen(false)}
+        onClose={handleTotpClose}
         onSubmit={handleTotpSubmit}
       />
     </>
