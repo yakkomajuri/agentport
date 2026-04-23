@@ -7,7 +7,6 @@ load_dotenv(override=True)
 class Settings(BaseSettings):
     dev: bool = False
     database_url: str = "sqlite:///agent_port.db"
-    port: int = 4747
     base_url: str = "http://localhost:4747"
     oauth_callback_url: str = "http://localhost:4747/api/auth/callback"
     is_self_hosted: bool = False

@@ -123,8 +123,4 @@ class CustomIntegration(BundledIntegration):
         return
 
 
-# Keep ApiIntegration as an alias so external code can migrate gradually.
-# New integrations should use CustomIntegration directly.
-ApiIntegration = CustomIntegration
-
 Integration = RemoteMcpIntegration | CustomIntegration
