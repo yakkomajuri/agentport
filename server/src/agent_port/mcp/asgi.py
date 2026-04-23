@@ -69,7 +69,7 @@ def _authenticate(scope: dict) -> AgentAuth | None:  # noqa: C901
 
         # Reject revoked tokens — covers both OAuth access tokens and admin
         # impersonation tokens (both go through the shared revocation list).
-        if token_use in ("access", "impersonation") and _is_token_revoked(token):
+        if token_use in ("mcp_access", "access", "impersonation") and _is_token_revoked(token):
             logger.warning("MCP auth: token is revoked")
             return None
 
@@ -78,8 +78,14 @@ def _authenticate(scope: dict) -> AgentAuth | None:  # noqa: C901
             logger.warning("MCP auth: token missing 'sub' claim")
             return None
 
-        # For OAuth access tokens (have token_use=access), use org_id from claims
-        if token_use == "access":
+        # OAuth access tokens minted by _issue_access_token carry
+        # token_use="mcp_access" and embed the grant's org_id. Legacy tokens
+        # using the bare "access" label (human login JWTs) are handled by the
+        # membership-lookup branch below.
+        if token_use == "mcp_access":
+            if payload.get("aud") != f"{settings.base_url}/mcp":
+                logger.warning("MCP auth: mcp_access token has invalid audience")
+                return None
             org_id = payload.get("org_id")
             if not org_id:
                 logger.warning("MCP auth: access token missing 'org_id' claim")

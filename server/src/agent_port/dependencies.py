@@ -58,6 +58,13 @@ def _decode_rest_bearer_token(
     if token_use not in ("access", "impersonation"):
         raise credentials_exception
 
+    # Defence-in-depth against token confusion (security audit finding 09):
+    # MCP-audience OAuth tokens must never cross into REST even if some future
+    # path mis-labels their token_use. Any token whose audience names /mcp is
+    # by construction a resource token for MCP and not a user bearer.
+    if payload.get("aud") == f"{settings.base_url}/mcp":
+        raise credentials_exception
+
     # Both regular access tokens and impersonation tokens participate in the
     # shared revocation list — stop_impersonation records the bearer hash so
     # a captured token stops working the instant the admin ends the session.

@@ -9,10 +9,12 @@ import json
 import logging
 import uuid
 
+from fastapi import HTTPException
 from mcp import types
 from sqlmodel import Session, select
 
 from agent_port.auth_start import start_oauth_for_installed
+from agent_port.billing.limits import enforce_integration_limit
 from agent_port.db import engine
 from agent_port.integrations import registry as integration_registry
 from agent_port.mcp.notifications import notify_tools_changed
@@ -409,6 +411,20 @@ async def _handle_install(args: dict, org_id) -> list[types.TextContent]:
                 return _text(f"Integration '{integration_id}' is already installed.")
             db.delete(existing)
             db.flush()
+
+        try:
+            enforce_integration_limit(org_id, db)
+        except HTTPException as exc:
+            detail = exc.detail
+            if isinstance(detail, dict):
+                return _text({"installed": False, **detail})
+            return _text(
+                {
+                    "installed": False,
+                    "error": "install_not_allowed",
+                    "message": str(detail),
+                }
+            )
 
         if bundled.type == "remote_mcp":
             url = bundled.url

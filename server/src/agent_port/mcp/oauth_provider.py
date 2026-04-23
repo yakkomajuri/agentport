@@ -45,13 +45,16 @@ def _issue_access_token(
     client_id: str,
     scopes: list[str],
 ) -> str:
+    # Token is scoped exclusively to the /mcp resource — token_use="mcp_access"
+    # (not the generic "access") so REST's _decode_rest_bearer_token rejects it
+    # on sight. See security audit finding 09.
     now = datetime.now(timezone.utc)
     claims = {
         "sub": str(user_id),
         "org_id": str(org_id),
         "client_id": client_id,
         "scope": " ".join(scopes),
-        "token_use": "access",
+        "token_use": "mcp_access",
         "aud": f"{settings.base_url}/mcp",
         "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
         "iat": now,
@@ -307,7 +310,7 @@ class AgentPortOAuthProvider:
         except jwt.PyJWTError:
             return None
 
-        if payload.get("token_use") != "access":
+        if payload.get("token_use") != "mcp_access":
             return None
 
         if _is_token_revoked(token):

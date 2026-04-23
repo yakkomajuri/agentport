@@ -1,5 +1,4 @@
-import { readConfig, writeConfig, type Config } from "./config.js";
-import { getJwtExpiry, refreshOAuthAccessToken } from "./oauth.js";
+import { readConfig, type Config } from "./config.js";
 
 export class ApprovalRequiredError extends Error {
   approvalUrl: string;
@@ -31,9 +30,7 @@ function buildHeaders(config: Config, hasBody: boolean): Record<string, string> 
     Accept: "application/json",
   };
 
-  if (config.auth_mode === "oauth" && config.access_token) {
-    headers["Authorization"] = `Bearer ${config.access_token}`;
-  } else if (config.auth_mode === "api_key" && config.api_key) {
+  if (config.auth_mode === "api_key" && config.api_key) {
     headers["X-API-Key"] = config.api_key;
   }
 
@@ -42,35 +39,6 @@ function buildHeaders(config: Config, hasBody: boolean): Record<string, string> 
   }
 
   return headers;
-}
-
-function shouldRefreshAccessToken(token: string): boolean {
-  const exp = getJwtExpiry(token);
-  if (exp === null) return false;
-  return exp <= Math.floor(Date.now() / 1000) + 60;
-}
-
-async function tryRefreshConfig(config: Config): Promise<Config> {
-  if (!config.refresh_token || !config.oauth_client_id) {
-    return config;
-  }
-
-  try {
-    const refreshed = await refreshOAuthAccessToken(
-      config.url,
-      config.oauth_client_id,
-      config.refresh_token,
-    );
-    const nextConfig: Config = {
-      ...config,
-      access_token: refreshed.access_token,
-      refresh_token: refreshed.refresh_token ?? config.refresh_token,
-    };
-    writeConfig(nextConfig);
-    return nextConfig;
-  } catch {
-    return config;
-  }
 }
 
 async function performRequest(
@@ -90,7 +58,7 @@ export async function request<T = unknown>(
   path: string,
   opts: RequestOptions = {},
 ): Promise<T> {
-  let config = readConfig();
+  const config = readConfig();
   const { method = "GET", body, params } = opts;
 
   const baseUrl = config.url.replace(/\/+$/, "");
@@ -98,10 +66,6 @@ export async function request<T = unknown>(
   if (params) {
     const qs = new URLSearchParams(params).toString();
     if (qs) url += `?${qs}`;
-  }
-
-  if (config.access_token && shouldRefreshAccessToken(config.access_token)) {
-    config = await tryRefreshConfig(config);
   }
 
   let res: Response;
@@ -115,19 +79,6 @@ export async function request<T = unknown>(
       );
     }
     throw new Error(`Request to ${baseUrl} failed: ${msg}`);
-  }
-
-  if (
-    res.status === 401 &&
-    config.access_token &&
-    config.refresh_token &&
-    config.oauth_client_id
-  ) {
-    const refreshedConfig = await tryRefreshConfig(config);
-    if (refreshedConfig.access_token && refreshedConfig.access_token !== config.access_token) {
-      res = await performRequest(refreshedConfig, url, method, body);
-      config = refreshedConfig;
-    }
   }
 
   if (res.status === 204) return undefined as T;
