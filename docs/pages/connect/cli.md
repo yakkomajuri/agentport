@@ -25,7 +25,7 @@ npm install -g agentport-cli
 
 ## Configuration
 
-Configuration lives at `~/.config/agent-port/config.json` and is managed by the CLI so you shouldn't have to manually edit it. It stores the server URL, the chosen auth mode (`oauth` or `api_key`), tokens, and your default output format.
+Configuration lives at `~/.config/agent-port/config.json` and is managed by the CLI so you shouldn't have to manually edit it. It stores the server URL, the chosen auth mode (currently `api_key`), the API key, and your default output format.
 
 The default server URL is `https://app.agentport.sh`. Override it with the `AGENT_PORT_URL` environment variable, or persist a different instance with:
 
@@ -41,39 +41,13 @@ You should really install the [AgentPort Skills](/connect/skills) for your agent
 
 ## Authentication
 
-### Browser OAuth (default)
-
-```sh
-ap auth login
-```
-
-This:
-
-1. Spins up a one-shot loopback HTTP server on `127.0.0.1`.
-2. Discovers the AgentPort OAuth metadata at `/.well-known/oauth-authorization-server`.
-3. Performs dynamic client registration.
-4. Opens the authorization URL in your browser (PKCE, `S256`).
-5. Waits up to 180 seconds for the redirect, exchanges the code, and writes the access and refresh tokens to your config.
-
-The CLI refreshes the access token automatically when it's about to expire, so you usually only run `login` once per machine.
-
-Useful flags:
-
-| Flag | Purpose |
-|------|---------|
-| `--no-open` | Print the URL but don't try to open a browser (for headless environments). |
-| `--timeout <seconds>` | Adjust the callback timeout (default `180`). |
-| `--api-key <key>` | Skip OAuth entirely and store an API key. |
-
-### API key
-
-For non-interactive environments (CI, agent runtimes, servers):
+The CLI authenticates with an API key issued from the AgentPort UI (Settings → API Keys):
 
 ```sh
 ap auth login --api-key ap_...
 ```
 
-API keys are issued from the AgentPort UI.
+> Browser OAuth is temporarily unavailable: MCP-audience OAuth tokens no longer unlock the REST API (security audit finding 09), and the CLI does not yet have a REST-scoped OAuth issuer. API keys are the supported CLI credential until that lands.
 
 ### Status and logout
 
@@ -108,7 +82,7 @@ Manage CLI credentials and the target instance.
 
 | Command | Purpose |
 |---------|---------|
-| `ap auth login` | OAuth login via the browser, or `--api-key <key>` for non-interactive auth. |
+| `ap auth login --api-key <key>` | Store an API key issued from the UI as the CLI credential. |
 | `ap auth logout` | Remove stored credentials. |
 | `ap auth status` | Show the configured URL, auth mode, masked tokens, and your account email. |
 | `ap auth set-instance-url <url>` | Point the CLI at a different AgentPort instance. Clears credentials. |

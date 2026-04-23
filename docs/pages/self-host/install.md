@@ -5,22 +5,26 @@ nav_title: Install
 
 # Installing AgentPort
 
-AgentPort self-hosts as two containers: a Caddy reverse proxy that handles TLS automatically, and the AgentPort server (FastAPI + the built UI, backed by SQLite on disk). Everything runs under Docker Compose.
+You can deploy AgentPort in just a few minutes on a VPS using Docker Compose.
+
+We'll provision everything for you, including setting up reverse proxying with TLS certificates for a domain you choose.
+
+The vast majority of integrations will work out of the box without any extra config. Only a few like Google will require some extra work from you.
 
 ## Requirements
 
-- A Linux host with a public IP (any cloud VM is fine — 1 vCPU / 1 GB RAM is plenty to start).
-- A domain name you can edit DNS for.
+- A Linux host with a public IP. We recommend at least 1 vCPU and 2GB RAM.
+- A domain name.
 - Ports **80** and **443** open to the internet (Let's Encrypt needs 80 for HTTP-01 challenges).
-- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose v2 plugin.
+- Docker installed ([docs](https)://docs.docker.com/engine/install/).
 - `git` and `curl`.
 
 ## One-line install
 
-SSH into the host and run:
+SSH into the instance and run:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/yakkomajuri/agent-port/main/install.sh | sh
+curl -fsSL https://install.agentport.sh | sh
 ```
 
 The script will:
@@ -31,7 +35,7 @@ The script will:
 4. Poll DNS (via Cloudflare DoH, so it bypasses your local resolver's cache) until the domain resolves to this host.
 5. Generate a `JWT_SECRET_KEY`, write `.env`, and bring up the stack with `docker compose -f docker-compose.prod.yml up -d --build`.
 
-Caddy provisions the TLS certificate on the first HTTPS request — usually within a minute of the containers starting.
+Caddy provisions the TLS certificate on the first HTTPS request, usually within a minute of the containers starting.
 
 ## Manual install
 
@@ -51,9 +55,11 @@ chmod 600 .env
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Before this will work, the DNS A record for `DOMAIN` must already resolve to the host's public IP — otherwise Let's Encrypt's HTTP-01 challenge fails.
+Note that for this to work the DNS A record for `DOMAIN` must already resolve to the host's public IP.
 
 ## Verifying it's up
+
+From the `agentport` directory, run:
 
 ```sh
 docker compose -f docker-compose.prod.yml ps
@@ -61,7 +67,7 @@ docker compose -f docker-compose.prod.yml logs -f
 curl -sSf https://agentport.example.com/health
 ```
 
-Then open the domain in a browser and create your first account. Once you've done that, set `BLOCK_SIGNUPS=true` in `.env` and re-run `docker compose -f docker-compose.prod.yml up -d` to lock down new registrations (see [Configuration](/self-host/configure)).
+Then open the domain in a browser and create your account. We automatically block any other signups after the first signup on self-hosted deploys. 
 
 ## Updating
 

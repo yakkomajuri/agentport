@@ -19,7 +19,6 @@ docker compose -f docker-compose.prod.yml up -d
 | `LETSENCRYPT_EMAIL` | *(required)* | Contact email Let's Encrypt uses for expiry warnings. |
 | `JWT_SECRET_KEY` | auto-generated on first boot | Signs session JWTs. If unset, the container writes one to `/data/jwt_secret` and reuses it across restarts. Set it explicitly if you want to pin or rotate it. |
 | `DATABASE_URL` | `sqlite:////data/agent_port.db` | See [Postgres](#using-postgres) below to point at a separate database. |
-| `BLOCK_SIGNUPS` | `false` | Set to `true` after creating the owner account to disable further registration. |
 | `SKIP_EMAIL_VERIFICATION` | `true` (in prod compose) | Leave as-is if you haven't configured email; set to `false` once `RESEND_API_KEY` is set. |
 | `BASE_URL` / `UI_BASE_URL` | `https://${DOMAIN}` | Usually don't touch — the compose file derives these from `DOMAIN`. |
 | `OAUTH_CALLBACK_URL` | `https://${DOMAIN}/api/auth/callback` | Must exactly match the redirect URI registered in each OAuth app. |
@@ -30,8 +29,6 @@ AgentPort's persistent state lives in two Docker volumes:
 
 - `agentport_data` — SQLite database, generated JWT secret, and anything else the server writes to `/data`.
 - `caddy_data` — Let's Encrypt account key and issued certificates. Losing it only means Caddy will request fresh certs on next boot (subject to Let's Encrypt's rate limits).
-
-Your `.env` is **not** in a volume — it's a plain file in the repo clone. Back it up separately; it contains the JWT secret and OAuth credentials.
 
 ### Backing up SQLite
 
@@ -58,17 +55,17 @@ docker compose -f docker-compose.prod.yml up -d
 
 ## Using Postgres
 
-SQLite is fine for small installs, but it's single-writer and lives on whatever disk the container's volume is on. For anything multi-user or with independent lifecycle from the app container, point AgentPort at a separate Postgres instance — **no code changes, just a connection string**.
+SQLite is fine for small installs, but it's single-writer and lives on whatever disk the container's volume is on. But for more serious usage, consider pointing AgentPort at a separate Postgres instance.
 
 ### Managed Postgres (recommended)
 
-Create a database on Supabase, Neon, RDS, Fly Postgres, etc. Set:
+Create a database on PlanetScale, Supabase, Neon, Fly Postgres, etc. Then set:
 
-```env
+```end
 DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@HOST:5432/agentport?sslmode=require
 ```
 
-Then restart:
+And restart:
 
 ```sh
 docker compose -f docker-compose.prod.yml up -d
@@ -106,8 +103,6 @@ volumes:
   postgres_data:
 ```
 
-Same process either way — AgentPort doesn't care whether Postgres is in-compose or external as long as the URL works.
-
 ### Migrating from SQLite to Postgres
 
 There's no in-place migration. The typical path is:
@@ -118,27 +113,6 @@ There's no in-place migration. The typical path is:
 
 For most installs it's simpler to start on Postgres from the beginning if you know you'll want it later.
 
-## Email (password reset, verification)
-
-Without email configured, password reset links don't work and `SKIP_EMAIL_VERIFICATION=true` is required so signups succeed. For anything beyond single-user installs, wire up Resend:
-
-```env
-RESEND_API_KEY=re_...
-EMAIL_FROM=noreply@yourdomain.com
-SKIP_EMAIL_VERIFICATION=false
-```
-
-The `EMAIL_FROM` domain needs to be verified in your Resend account.
-
-## Signup control
-
-After you create the owner account, lock the instance down:
-
-```env
-BLOCK_SIGNUPS=true
-```
-
-Further `/signup` attempts will be rejected. You can still invite users via the admin UI (future) or by temporarily flipping the flag back off.
 
 ## Log rotation
 
@@ -168,16 +142,6 @@ On a shared host you want a runaway not to OOM the whole machine. Add under the 
 
 (The `deploy:` key is honored by `docker compose up` as of Compose v2 when not running under Swarm.)
 
-## Analytics
-
-Optional PostHog integration for usage metrics:
-
-```env
-POSTHOG_PROJECT_TOKEN=phc_...
-POSTHOG_HOST=https://us.i.posthog.com
-```
-
-Leave empty to disable (the default).
 
 ## Google sign-in
 
