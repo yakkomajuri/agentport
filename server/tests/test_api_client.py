@@ -75,6 +75,15 @@ def test_build_url_with_path_params():
     assert url == "https://api.example.com/v1/items/abc123"
 
 
+def test_build_url_encodes_path_params():
+    url = _build_url(
+        "https://api.example.com",
+        "/v1/items/{id}",
+        {"id": "folder/item?include=secret#fragment"},
+    )
+    assert url == "https://api.example.com/v1/items/folder%2Fitem%3Finclude%3Dsecret%23fragment"
+
+
 def test_build_url_trailing_slash():
     url = _build_url("https://api.example.com/", "/v1/items", {})
     assert url == "https://api.example.com/v1/items"

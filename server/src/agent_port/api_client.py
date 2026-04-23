@@ -6,6 +6,7 @@ tools, returning results in the same format as the MCP client.
 
 import json
 import re
+from urllib.parse import quote
 
 import httpx
 from sqlmodel import Session
@@ -87,7 +88,7 @@ def _build_url(base_url: str, path: str, args: dict) -> str:
     url = base_url.rstrip("/") + "/" + path.lstrip("/")
     for param in _extract_path_params(path):
         value = args.get(param, "")
-        url = url.replace(f"{{{param}}}", str(value))
+        url = url.replace(f"{{{param}}}", quote(str(value), safe=""))
     return url
 
 
