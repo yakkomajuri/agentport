@@ -19,19 +19,28 @@ Currently, the approval policies supported are:
 
 ## Get started
 
-### Self-host
-
-Run:
+### Try locally
 
 ```sh
-<oneliner_install>
+git clone https://github.com/yakkomajuri/agentport
+
+cd agentport
+docker compose up
 ```
 
-Docs at docs.
+### Self-host
+
+You can deploy a production instance of AgentPort in five minutes with our one-liner install:
+
+```sh
+curl -fsSL https://install.agentport.sh | sh
+```
+
+More info on the [dedicated docs page](/self-host/install).
 
 ### Cloud
 
-app.agentport.sh
+If you'd rather use a managed service, head to [app.agentport.sh](https://app.agentport.sh).
 
 ## Human approval
 
