@@ -74,6 +74,7 @@ def register(body: RegisterRequest, session: Session = Depends(get_session)) -> 
     if settings.block_signups:
         raise HTTPException(status_code=403, detail="Signups are disabled")
 
+    is_first_self_hosted_user = False
     if settings.is_self_hosted:
         org_count = session.exec(select(func.count()).select_from(Org)).one()
         if org_count >= 1:
@@ -81,6 +82,7 @@ def register(body: RegisterRequest, session: Session = Depends(get_session)) -> 
                 status_code=409,
                 detail="Server already has an organization (IS_SELF_HOSTED=true)",
             )
+        is_first_self_hosted_user = True
 
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
@@ -90,6 +92,7 @@ def register(body: RegisterRequest, session: Session = Depends(get_session)) -> 
         email=email,
         hashed_password=hash_password(body.password),
         email_verified=settings.skip_email_verification,
+        is_admin=is_first_self_hosted_user,
     )
     org_name = body.org_name or f"{email}'s organization"
     org = Org(name=org_name)

@@ -19,7 +19,8 @@ Authorization: Bearer <token>
 
 Create a new user. Automatically creates an organization and makes the user its owner. No auth required.
 
-When `IS_SELF_HOSTED=true`, returns `409` if an organization already exists.
+When `IS_SELF_HOSTED=true`, the first successful registration becomes the admin (`is_admin=true`) and
+all subsequent registrations return `409` (one org per self-hosted instance).
 
 **Body:**
 ```json

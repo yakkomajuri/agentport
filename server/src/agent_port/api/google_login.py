@@ -174,6 +174,7 @@ def _find_or_create_user(session: Session, *, sub: str, email: str, email_verifi
 
     if settings.block_signups:
         raise HTTPException(status_code=403, detail="Signups are disabled")
+    is_first_self_hosted_user = False
     if settings.is_self_hosted:
         org_count = session.exec(select(func.count()).select_from(Org)).one()
         if org_count >= 1:
@@ -181,12 +182,14 @@ def _find_or_create_user(session: Session, *, sub: str, email: str, email_verifi
                 status_code=409,
                 detail="Server already has an organization (IS_SELF_HOSTED=true)",
             )
+        is_first_self_hosted_user = True
 
     user = User(
         email=email,
         hashed_password=None,
         google_sub=sub,
         email_verified=email_verified or settings.skip_email_verification,
+        is_admin=is_first_self_hosted_user,
     )
     org = Org(name=f"{email}'s organization")
     session.add(user)
