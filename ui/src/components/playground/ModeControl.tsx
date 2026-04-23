@@ -32,7 +32,9 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
   const currentConfig = TOOL_MODES.find((m) => m.mode === mode) ?? TOOL_MODES[1]
   const CurrentIcon = currentConfig.icon
 
-  const pendingConfig = pendingMode ? TOOL_MODES.find((m) => m.mode === pendingMode) ?? null : null
+  const pendingConfig = pendingMode
+    ? (TOOL_MODES.find((m) => m.mode === pendingMode) ?? null)
+    : null
   const hasChange = pendingMode !== null && pendingMode !== (mode ?? 'require_approval')
 
   function handleOpen() {

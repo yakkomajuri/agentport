@@ -198,7 +198,7 @@ export function LogCard({
 
   const pill = isExpired
     ? OUTCOME_PILL.expired
-    : OUTCOME_PILL[entry.outcome ?? 'executed'] ?? OUTCOME_PILL.executed
+    : (OUTCOME_PILL[entry.outcome ?? 'executed'] ?? OUTCOME_PILL.executed)
   const accessTag = entry.access_reason ? ACCESS_LABELS[entry.access_reason] : null
 
   return (

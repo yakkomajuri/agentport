@@ -153,7 +153,7 @@ export function ResponsePanel({
           <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, lineHeight: 1.5 }}>
             {awaitingApproval
               ? 'Polling for approval every 2 seconds. Approve in the drawer and the call will auto-retry.'
-              : approvalData?.message ?? 'Approval required before this tool can run.'}
+              : (approvalData?.message ?? 'Approval required before this tool can run.')}
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button size="sm" onClick={onOpenDrawer}>

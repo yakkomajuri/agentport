@@ -669,7 +669,8 @@ function ModeSelect({
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const triggerRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const active = mode === 'custom' ? CUSTOM_DISPLAY : MODES.find((m) => m.mode === mode) ?? MODES[1]
+  const active =
+    mode === 'custom' ? CUSTOM_DISPLAY : (MODES.find((m) => m.mode === mode) ?? MODES[1])
 
   function handleToggle() {
     if (disabled) return
