@@ -50,15 +50,30 @@ def _reset_rate_limit_state():
     reset_all_rate_limiters()
 
 
+_ENGINE_CONSUMER_MODULES = (
+    "agent_port.db",
+    "agent_port.api_client",
+    "agent_port.mcp.asgi",
+    "agent_port.mcp.client",
+    "agent_port.mcp.management_tools",
+    "agent_port.mcp.oauth",
+    "agent_port.mcp.oauth_provider",
+    "agent_port.mcp.refresh",
+    "agent_port.mcp.server",
+)
+
+
 @pytest.fixture(name="session")
-def session_fixture():
-    engine = create_engine(
+def session_fixture(monkeypatch):
+    test_engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
+    SQLModel.metadata.create_all(test_engine)
+    for module in _ENGINE_CONSUMER_MODULES:
+        monkeypatch.setattr(f"{module}.engine", test_engine, raising=False)
+    with Session(test_engine) as session:
         yield session
 
 
