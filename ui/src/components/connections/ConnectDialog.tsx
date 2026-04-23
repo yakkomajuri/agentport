@@ -12,9 +12,28 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useConnectionsStore } from '@/stores/connections'
-import { api } from '@/api/client'
+import { api, ApiError } from '@/api/client'
 import type { BundledIntegration } from '@/api/client'
 import { LOGOS } from '@/components/connections/IntegrationCard'
+
+interface LimitError {
+  message: string
+  limit: number
+}
+
+function asLimitError(err: unknown): LimitError | null {
+  if (!(err instanceof ApiError) || err.status !== 402) return null
+  const body = err.body
+  if (typeof body !== 'object' || body === null) return null
+  const detail = (body as { detail?: unknown }).detail
+  if (typeof detail !== 'object' || detail === null) return null
+  const d = detail as { error?: unknown; message?: unknown; limit?: unknown }
+  if (d.error !== 'free_tier_limit') return null
+  return {
+    message: typeof d.message === 'string' ? d.message : 'Free plan limit reached.',
+    limit: typeof d.limit === 'number' ? d.limit : 5,
+  }
+}
 
 interface Props {
   integration: BundledIntegration | null
@@ -32,6 +51,7 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [limitError, setLimitError] = useState<LimitError | null>(null)
 
   function navigateToIntegrationDetail(integrationId: string) {
     const detailPath = `/integrations/${encodeURIComponent(integrationId)}`
@@ -45,6 +65,7 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
       onClose()
       setToken('')
       setError('')
+      setLimitError(null)
     }
   }
 
@@ -52,6 +73,7 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
     if (!integration) return
     setLoading(true)
     setError('')
+    setLimitError(null)
     try {
       if (!reauth) {
         await install({
@@ -81,10 +103,23 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
         navigateToIntegrationDetail(integration.id)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : reauth ? 'Failed to re-authenticate' : 'Failed to connect')
+      const limit = asLimitError(err)
+      if (limit) {
+        setLimitError(limit)
+      } else {
+        setError(err instanceof Error ? err.message : reauth ? 'Failed to re-authenticate' : 'Failed to connect')
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  function handleUpgrade() {
+    onClose()
+    setToken('')
+    setError('')
+    setLimitError(null)
+    navigate('/settings/billing')
   }
 
   if (!integration) return null
@@ -153,6 +188,27 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
         </DialogHeader>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '4px 0' }}>
+          {limitError && (
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+                background: 'var(--surface)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                You&rsquo;ve reached the Free plan limit
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+                {limitError.message}
+              </div>
+            </div>
+          )}
+
           {(supportsOAuth || supportsToken) && (
             <div>
               <Label style={labelStyle}>Auth method</Label>
@@ -195,11 +251,17 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
           <Button variant="outline" size="default" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="default" onClick={handleSubmit} disabled={loading}>
-            {loading
-              ? reauth ? 'Re-authenticating...' : 'Connecting...'
-              : reauth ? 'Re-authenticate' : 'Connect'}
-          </Button>
+          {limitError ? (
+            <Button size="default" onClick={handleUpgrade}>
+              Upgrade to Plus
+            </Button>
+          ) : (
+            <Button size="default" onClick={handleSubmit} disabled={loading}>
+              {loading
+                ? reauth ? 'Re-authenticating...' : 'Connecting...'
+                : reauth ? 'Re-authenticate' : 'Connect'}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

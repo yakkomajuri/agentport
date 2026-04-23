@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from agent_port.analytics import posthog_client
+from agent_port.billing.limits import enforce_integration_limit
 from agent_port.db import get_session
 from agent_port.dependencies import AgentAuth, get_agent_auth
 from agent_port.integrations import registry
@@ -70,6 +71,8 @@ async def install_integration(
         # Stale unconnected record (e.g. a previous OAuth attempt failed) — replace it.
         session.delete(existing)
         session.flush()
+
+    enforce_integration_limit(agent_auth.org.id, session)
 
     if body.auth_method == "token" and not body.token:
         raise HTTPException(status_code=400, detail="Token required for token auth")
