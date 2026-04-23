@@ -22,6 +22,8 @@ docker compose -f docker-compose.prod.yml up -d
 | `SKIP_EMAIL_VERIFICATION` | `true` (in prod compose) | Leave as-is if you haven't configured email; set to `false` once `RESEND_API_KEY` is set. |
 | `BASE_URL` / `UI_BASE_URL` | `https://${DOMAIN}` | Usually don't touch — the compose file derives these from `DOMAIN`. |
 | `OAUTH_CALLBACK_URL` | `https://${DOMAIN}/api/auth/callback` | Must exactly match the redirect URI registered in each OAuth app. |
+| `POSTHOG_HOST` | `https://us.i.posthog.com` | Optional. PostHog ingestion host for server-side analytics. Set `https://eu.i.posthog.com` for EU projects. |
+| `VITE_PUBLIC_POSTHOG_HOST` | `https://us.i.posthog.com` | Optional. PostHog ingestion host baked into the frontend bundle at build time. Set it to the same region as `POSTHOG_HOST`. |
 
 ## Backups
 
@@ -153,6 +155,24 @@ GOOGLE_LOGIN_CLIENT_SECRET=...
 ```
 
 Without these set, the "Continue with Google" button still renders on the login page but returns an error when clicked.
+
+## PostHog analytics
+
+If you want AgentPort to send product analytics, set your PostHog project token and optionally override the host:
+
+```env
+POSTHOG_PROJECT_TOKEN=...
+POSTHOG_HOST=https://us.i.posthog.com
+VITE_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+```
+
+If you omit either host, AgentPort defaults to US ingestion. Use `https://eu.i.posthog.com` for EU-hosted PostHog projects, and keep `POSTHOG_HOST` and `VITE_PUBLIC_POSTHOG_HOST` aligned.
+
+Because `VITE_PUBLIC_POSTHOG_HOST` is compiled into the UI bundle, changing it requires a rebuild:
+
+```sh
+docker compose -f docker-compose.prod.yml up -d --build
+```
 
 ## OAuth credentials for integrations
 

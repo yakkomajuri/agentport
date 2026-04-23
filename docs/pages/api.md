@@ -193,6 +193,22 @@ in with their existing password if any). Otherwise a new user + org are created,
 
 ---
 
+## Public Config
+
+### `GET /api/config`
+
+Returns non-sensitive runtime config used by the UI. Public — no auth required.
+
+**Response `200`:**
+```json
+{
+  "is_self_hosted": true,
+  "billing_enabled": false
+}
+```
+
+---
+
 ## Integrations
 
 Browse the catalog of bundled integrations. Public — no auth required.
