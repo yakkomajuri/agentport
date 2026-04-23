@@ -14,6 +14,8 @@ import { LOGOS } from '@/components/connections/IntegrationCard'
 import { api, type Tool } from '@/api/client'
 import { TOOL_MODES } from '@/lib/toolModes'
 import { useIsMobile } from '@/lib/useMediaQuery'
+import { isTotpChallengeError } from '@/lib/totpError'
+import { TotpCodeDialog } from '@/components/totp/TotpCodeDialog'
 
 const TYPE_LABELS: Record<string, string> = {
   remote_mcp: 'Remote MCP',
@@ -44,6 +46,13 @@ export default function ConnectionDetailPage() {
   const [reauthMode, setReauthMode] = useState(false)
   const [updating, setUpdating] = useState<string | null>(null)
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null)
+  const [pendingTotp, setPendingTotp] = useState<
+    Array<{ toolName: string; newMode: string; prevMode: string }>
+  >([])
+  const [totpDialogOpen, setTotpDialogOpen] = useState(false)
+  // Mark whether the current dialog close is from a successful submit so we
+  // don't revert the optimistic updates that just persisted.
+  const totpCommittedRef = useRef(false)
 
   useEffect(() => {
     if (integrations.length === 0) fetchIntegrations()
@@ -133,27 +142,85 @@ export default function ConnectionDetailPage() {
     patchToolMode(toolName, newMode)
     try {
       await api.toolSettings.update(inst.integration_id, toolName, newMode)
-    } catch {
-      patchToolMode(toolName, currentMode)
+    } catch (e) {
+      if (isTotpChallengeError(e)) {
+        setPendingTotp([{ toolName, newMode, prevMode: currentMode }])
+        totpCommittedRef.current = false
+        setTotpDialogOpen(true)
+      } else {
+        patchToolMode(toolName, currentMode)
+      }
     } finally {
       setUpdating(null)
     }
   }
 
-  function setCategoryMode(categoryTools: ToolWithMode[], newMode: string) {
+  async function setCategoryMode(categoryTools: ToolWithMode[], newMode: string) {
     if (!inst) return
-    const toUpdate = categoryTools.filter(
-      (t) => (t.execution_mode || 'require_approval') !== newMode,
+    const work = categoryTools
+      .filter((t) => (t.execution_mode || 'require_approval') !== newMode)
+      .map((t) => ({
+        toolName: t.name,
+        newMode,
+        prevMode: t.execution_mode || 'require_approval',
+      }))
+    if (work.length === 0) return
+
+    work.forEach((w) => patchToolMode(w.toolName, w.newMode))
+
+    const results = await Promise.allSettled(
+      work.map((w) => api.toolSettings.update(inst.integration_id, w.toolName, w.newMode)),
     )
-    toUpdate.forEach((t) => patchToolMode(t.name, newMode))
-    toUpdate.forEach(async (tool) => {
-      const prev = tool.execution_mode || 'require_approval'
-      try {
-        await api.toolSettings.update(inst.integration_id, tool.name, newMode)
-      } catch {
-        patchToolMode(tool.name, prev)
+    const needTotp: typeof work = []
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        if (isTotpChallengeError(r.reason)) {
+          needTotp.push(work[i])
+        } else {
+          patchToolMode(work[i].toolName, work[i].prevMode)
+        }
       }
     })
+    if (needTotp.length > 0) {
+      setPendingTotp(needTotp)
+      totpCommittedRef.current = false
+      setTotpDialogOpen(true)
+    }
+  }
+
+  async function handleTotpSubmit(code: string) {
+    if (!inst || pendingTotp.length === 0) return
+    const results = await Promise.allSettled(
+      pendingTotp.map((w) =>
+        api.toolSettings.update(inst.integration_id, w.toolName, w.newMode, code),
+      ),
+    )
+    const stillInvalid: typeof pendingTotp = []
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        if (isTotpChallengeError(r.reason)) {
+          stillInvalid.push(pendingTotp[i])
+        } else {
+          patchToolMode(pendingTotp[i].toolName, pendingTotp[i].prevMode)
+        }
+      }
+    })
+    if (stillInvalid.length > 0) {
+      setPendingTotp(stillInvalid)
+      // Throwing keeps TotpCodeDialog open and lets it show the error.
+      throw new Error("That code didn't match — try again with a fresh one.")
+    }
+    totpCommittedRef.current = true
+    setPendingTotp([])
+  }
+
+  function handleTotpClose() {
+    if (!totpCommittedRef.current) {
+      pendingTotp.forEach((w) => patchToolMode(w.toolName, w.prevMode))
+      setPendingTotp([])
+    }
+    totpCommittedRef.current = false
+    setTotpDialogOpen(false)
   }
 
   async function handleDisconnect() {
@@ -561,6 +628,18 @@ export default function ConnectionDetailPage() {
           <LogDetailPanel entry={selectedLog} onClose={() => setSelectedLog(null)} />,
           document.body,
         )}
+      <TotpCodeDialog
+        open={totpDialogOpen}
+        title="Confirm allow access"
+        description={
+          pendingTotp.length > 1
+            ? `Enter your authenticator code to allow ${pendingTotp.length} tools.`
+            : `Enter your authenticator code to allow ${pendingTotp[0]?.toolName ?? 'this tool'}.`
+        }
+        confirmLabel="Allow"
+        onClose={handleTotpClose}
+        onSubmit={handleTotpSubmit}
+      />
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </>
   )

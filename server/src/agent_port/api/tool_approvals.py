@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlmodel import Session, col, select
 
 from agent_port.analytics import posthog_client
+from agent_port.api.second_factor import require_second_factor
 from agent_port.approvals import events as approval_events
 from agent_port.db import get_session
 from agent_port.dependencies import get_current_org, get_current_user
@@ -13,34 +14,8 @@ from agent_port.models.org import Org
 from agent_port.models.tool_approval_request import ToolApprovalRequest
 from agent_port.models.tool_execution import ToolExecutionSetting
 from agent_port.models.user import User
-from agent_port.totp import verify_second_factor
 
 router = APIRouter(prefix="/api/tool-approvals", tags=["tool-approvals"])
-
-
-def _require_second_factor(user: User, code: str | None) -> None:
-    """If the approver has TOTP enabled, validate their code before acting.
-
-    Raises 403 with a structured body the UI can detect. Recovery codes are
-    burned here on success, so callers must commit the session afterwards."""
-    if not user.totp_enabled:
-        return
-    if not code:
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "error": "totp_required",
-                "message": "A one-time code is required to confirm this action.",
-            },
-        )
-    if not verify_second_factor(user, code):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "error": "totp_invalid",
-                "message": "That code didn't match — try again with a fresh one.",
-            },
-        )
 
 
 def _update_pending_log(session: Session, approval_request_id: uuid.UUID, outcome: str) -> None:
@@ -117,7 +92,7 @@ def approve_once(
         session.commit()
         raise HTTPException(status_code=410, detail="Approval request has expired")
 
-    _require_second_factor(current_user, totp_code)
+    require_second_factor(current_user, totp_code)
     session.add(current_user)
 
     req.status = "approved"
@@ -161,7 +136,7 @@ def allow_tool(
         session.commit()
         raise HTTPException(status_code=410, detail="Approval request has expired")
 
-    _require_second_factor(current_user, totp_code)
+    require_second_factor(current_user, totp_code)
     session.add(current_user)
 
     # Upsert execution setting to "allow" — this is the single source of truth for the
@@ -230,7 +205,7 @@ def deny_request(
         session.commit()
         raise HTTPException(status_code=410, detail="Approval request has expired")
 
-    _require_second_factor(current_user, totp_code)
+    require_second_factor(current_user, totp_code)
     session.add(current_user)
 
     req.status = "denied"

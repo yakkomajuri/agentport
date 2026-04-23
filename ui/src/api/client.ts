@@ -540,10 +540,13 @@ export const api = {
         `/tool-settings/${encodeURIComponent(integration_id)}`,
       )
     },
-    update(integration_id: string, toolName: string, mode: string) {
+    update(integration_id: string, toolName: string, mode: string, totp_code?: string) {
       return request<ToolExecutionSettingResponse>(
         `/tool-settings/${encodeURIComponent(integration_id)}/${encodeURIComponent(toolName)}`,
-        { method: 'PUT', body: JSON.stringify({ mode }) },
+        {
+          method: 'PUT',
+          body: JSON.stringify({ mode, totp_code: totp_code ?? null }),
+        },
       )
     },
   },

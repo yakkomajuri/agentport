@@ -14,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   api,
-  ApiError,
   type ApprovalRequest,
   type BundledIntegration,
   type Tool,
@@ -22,6 +21,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { LOGOS } from '@/components/connections/IntegrationCard'
 import { CodeInput } from '@/components/totp/CodeInput'
+import { isTotpChallengeError } from '@/lib/totpError'
 
 interface ApprovePageProps {
   /** When rendered inline (e.g. playground drawer) override the URL param */
@@ -61,16 +61,6 @@ function renderWithLinks(text: string): React.ReactNode[] {
   }
   if (lastIndex < text.length) parts.push(text.slice(lastIndex))
   return parts
-}
-
-function isTotpChallengeError(error: unknown): error is ApiError {
-  if (!(error instanceof ApiError) || error.status !== 403) return false
-  const body = error.body
-  if (!body || typeof body !== 'object') return false
-  const detail = 'detail' in body ? (body as { detail?: unknown }).detail : null
-  if (!detail || typeof detail !== 'object') return false
-  const code = 'error' in detail ? (detail as { error?: unknown }).error : null
-  return code === 'totp_required' || code === 'totp_invalid'
 }
 
 export default function ApprovePage({

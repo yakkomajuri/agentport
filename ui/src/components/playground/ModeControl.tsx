@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { AlertTriangle, ChevronDown, Loader2 } from 'lucide-react'
 import { TOOL_MODES } from '@/lib/toolModes'
 import { api } from '@/api/client'
+import { isTotpChallengeError } from '@/lib/totpError'
+import { TotpCodeDialog } from '@/components/totp/TotpCodeDialog'
 
 const MODE_DESCRIPTIONS: Record<string, string> = {
   allow: 'Runs immediately without asking',
@@ -22,6 +24,7 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
   const [pendingMode, setPendingMode] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [totpDialogOpen, setTotpDialogOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ top: 0, left: 0 })
@@ -49,20 +52,35 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
     setError(null)
   }
 
+  async function savePending(totpCode?: string) {
+    if (!pendingMode) return
+    await api.toolSettings.update(integrationName, toolName, pendingMode, totpCode)
+    onModeChange(pendingMode)
+    setOpen(false)
+    setPendingMode(null)
+  }
+
   async function handleSave() {
     if (!pendingMode || !hasChange) return
     setSaving(true)
     setError(null)
     try {
-      await api.toolSettings.update(integrationName, toolName, pendingMode)
-      onModeChange(pendingMode)
-      setOpen(false)
-      setPendingMode(null)
+      await savePending()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save')
+      if (isTotpChallengeError(e)) {
+        setTotpDialogOpen(true)
+      } else {
+        setError(e instanceof Error ? e.message : 'Failed to save')
+      }
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleTotpSubmit(code: string) {
+    // Throw back to TotpCodeDialog on failure so it can surface the error
+    // in its own UI (e.g. wrong code → inline message, dialog stays open).
+    await savePending(code)
   }
 
   useEffect(() => {
@@ -329,6 +347,15 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
           </div>,
           document.body,
         )}
+
+      <TotpCodeDialog
+        open={totpDialogOpen}
+        title="Confirm allow access"
+        description={`Enter your authenticator code to let ${toolName} run without approval.`}
+        confirmLabel="Allow"
+        onClose={() => setTotpDialogOpen(false)}
+        onSubmit={handleTotpSubmit}
+      />
     </>
   )
 }
