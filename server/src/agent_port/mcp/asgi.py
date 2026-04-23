@@ -60,9 +60,15 @@ def _authenticate(scope: dict) -> AgentAuth | None:  # noqa: C901
             logger.warning("MCP auth: refresh token presented on MCP endpoint")
             return None
 
+        # Reject purpose-specific tokens that must not authenticate MCP calls
+        # (e.g. email-verification session handles).
+        token_use = payload.get("token_use")
+        if token_use == "email_verification":
+            logger.warning("MCP auth: email-verification token presented on MCP endpoint")
+            return None
+
         # Reject revoked tokens — covers both OAuth access tokens and admin
         # impersonation tokens (both go through the shared revocation list).
-        token_use = payload.get("token_use")
         if token_use in ("access", "impersonation") and _is_token_revoked(token):
             logger.warning("MCP auth: token is revoked")
             return None

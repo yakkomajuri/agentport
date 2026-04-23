@@ -51,14 +51,17 @@ def _decode_rest_bearer_token(
     except jwt.PyJWTError:
         raise credentials_exception
 
+    # Only login / impersonation tokens may authenticate REST requests.
+    # Rejects refresh tokens and purpose-specific tokens like email-verification
+    # sessions so those handles cannot be replayed as generic bearer credentials.
     token_use = payload.get("token_use")
-    if token_use == "refresh":
+    if token_use not in ("access", "impersonation"):
         raise credentials_exception
 
     # Both regular access tokens and impersonation tokens participate in the
     # shared revocation list — stop_impersonation records the bearer hash so
     # a captured token stops working the instant the admin ends the session.
-    if token_use in ("access", "impersonation") and _is_token_revoked(token, session):
+    if _is_token_revoked(token, session):
         raise credentials_exception
 
     return payload

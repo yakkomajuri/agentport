@@ -3,8 +3,14 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 
-from agent_port.auth_tokens import create_email_verification_session_token
+from agent_port.auth_tokens import (
+    create_access_token,
+    create_email_verification_session_token,
+)
+from agent_port.db import get_session
+from agent_port.main import app
 from agent_port.rate_limit import reset_all_rate_limiters
 
 
@@ -351,3 +357,50 @@ async def test_thousand_wrong_guesses_are_blocked(client, test_user, session):
     # Either the code burned (counter cap) or rate-limiter fired — in both cases
     # we should never have accepted anywhere near 1,000 wrong codes.
     assert accepted_attempts < 50
+
+
+# ─── 07: verification-session tokens must not authenticate REST ──────────────
+
+
+@pytest.mark.anyio
+async def test_email_verification_token_rejected_as_rest_bearer(session, test_user, test_org):
+    """The short-lived handle returned from /register must not unlock
+    generic authenticated endpoints — its only purpose is submitting the
+    6-digit code on /verify-email-code."""
+    token = create_email_verification_session_token(str(test_user.id))
+
+    def override_session():
+        yield session
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides[get_session] = override_session
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as raw:
+        resp = await raw.get("/api/users/me")
+        assert resp.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_normal_access_token_still_authenticates_rest(session, test_user, test_org):
+    """Compatibility guard: tightening the REST decoder must not break the
+    login-issued access token."""
+    token = create_access_token(str(test_user.id))
+
+    def override_session():
+        yield session
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides[get_session] = override_session
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as raw:
+        resp = await raw.get("/api/users/me")
+        assert resp.status_code == 200
+        assert resp.json()["email"] == test_user.email

@@ -14,7 +14,7 @@ def _utcnow() -> datetime:
 
 def create_access_token(user_id: str, *, impersonator_id: str | None = None) -> str:
     expire = _utcnow() + timedelta(minutes=settings.jwt_expire_minutes)
-    claims: dict[str, object] = {"sub": user_id, "exp": expire}
+    claims: dict[str, object] = {"sub": user_id, "exp": expire, "token_use": "access"}
     if impersonator_id:
         claims["impersonator_sub"] = impersonator_id
     return jwt.encode(
@@ -58,6 +58,7 @@ def create_email_verification_session_token(user_id: str) -> str:
             "sub": user_id,
             "exp": expire,
             "scope": "email_verification",
+            "token_use": "email_verification",
         },
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
