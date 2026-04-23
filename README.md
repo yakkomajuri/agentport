@@ -5,7 +5,7 @@
 
 # AgentPort
 
-AgentPort is an open source gateway to securely connect any service to autonomous agents.
+AgentPort is an open source gateway to securely connect any service to autonomous agents 🦞.
 
 Securely means that agents never see your API keys, and that you control exactly what they can and can't do with approval policies.
 

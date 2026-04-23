@@ -1,7 +1,6 @@
 import posthog from 'posthog-js'
 
 const posthogProjectToken = 'phc_o9LvxygZagFKt6J9UcJmzf4Ldrj2cFZx8mKMoAtuuUpb'
-
 const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com'
 
 export const isPostHogEnabled = true

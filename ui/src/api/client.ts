@@ -196,6 +196,11 @@ export interface ApprovalRequest {
   additional_info: string | null
 }
 
+export interface PublicConfig {
+  is_self_hosted: boolean
+  billing_enabled: boolean
+}
+
 export interface ToolExecutionSettingResponse {
   id: string
   org_id: string
@@ -551,7 +556,7 @@ export const api = {
   },
   config: {
     get() {
-      return request<{ is_self_hosted: boolean; billing_enabled: boolean }>('/config')
+      return request<PublicConfig>('/config')
     },
   },
   billing: {

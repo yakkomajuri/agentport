@@ -9,6 +9,7 @@ primary_region = 'iad'
 [build]
   [build.args]
     IS_CLOUD = "true"
+    VITE_PUBLIC_POSTHOG_HOST = "https://d.agentport.sh"
 
 [deploy]
   release_command = 'uv run alembic upgrade head'
@@ -20,6 +21,7 @@ primary_region = 'iad'
   OAUTH_CALLBACK_URL = 'https://app.agentport.sh/api/auth/callback'
   UI_BASE_URL = 'https://app.agentport.sh'
   IS_CLOUD = 'true'
+  POSTHOG_HOST = 'https://d.agentport.sh'
 
 [http_service]
   internal_port = 4747
