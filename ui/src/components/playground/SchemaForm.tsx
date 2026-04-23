@@ -32,13 +32,7 @@ export function SchemaForm({
   const hasProperties = properties && Object.keys(properties).length > 0
 
   if (rawMode) {
-    return (
-      <RawTextarea
-        value={rawJson}
-        onChange={onRawJsonChange}
-        placeholder={'{\n  \n}'}
-      />
-    )
+    return <RawTextarea value={rawJson} onChange={onRawJsonChange} placeholder={'{\n  \n}'} />
   }
 
   if (!hasProperties) {
@@ -101,9 +95,7 @@ function SchemaField({
         >
           {name}
         </span>
-        {required && (
-          <span style={{ fontSize: 11, color: 'var(--red)', lineHeight: 1 }}>*</span>
-        )}
+        {required && <span style={{ fontSize: 11, color: 'var(--red)', lineHeight: 1 }}>*</span>}
         {property.type && (
           <span style={{ fontSize: 10, color: 'var(--text-faint)', marginLeft: 2 }}>
             {property.type}
@@ -165,13 +157,7 @@ function SchemaField({
   )
 }
 
-function BooleanToggle({
-  value,
-  onChange,
-}: {
-  value: boolean
-  onChange: (v: boolean) => void
-}) {
+function BooleanToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <div style={{ display: 'flex', gap: 4 }}>
       {[true, false].map((opt) => (

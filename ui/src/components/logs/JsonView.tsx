@@ -154,11 +154,7 @@ function McpTextItem({ text, label }: { text: string; label?: string }) {
     <div>
       {label && <ContentLabel label={label} />}
       <CodeBlock>
-        {parsed !== undefined ? (
-          <JsonHighlight json={JSON.stringify(parsed, null, 2)} />
-        ) : (
-          text
-        )}
+        {parsed !== undefined ? <JsonHighlight json={JSON.stringify(parsed, null, 2)} /> : text}
       </CodeBlock>
     </div>
   )

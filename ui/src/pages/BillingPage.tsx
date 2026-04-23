@@ -86,9 +86,7 @@ export default function BillingPage() {
 
   const isPlus = sub?.tier === 'plus'
   const mailto = sub
-    ? `mailto:${sub.enterprise_contact_email}?subject=${encodeURIComponent(
-        'AgentPort Enterprise',
-      )}`
+    ? `mailto:${sub.enterprise_contact_email}?subject=${encodeURIComponent('AgentPort Enterprise')}`
     : '#'
 
   return (
@@ -219,7 +217,14 @@ function CurrentPlanPanel({
 
   return (
     <div style={panelStyle}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}
+      >
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{tierLabel}</div>
           <div
@@ -286,13 +291,20 @@ function PlanCard({
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{name}</div>
         <div style={{ marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 4 }}>
           <span style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)' }}>{price}</span>
-          {cadence && (
-            <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>{cadence}</span>
-          )}
+          {cadence && <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>{cadence}</span>}
         </div>
       </div>
 
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <ul
+        style={{
+          listStyle: 'none',
+          padding: 0,
+          margin: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+        }}
+      >
         {features.map((f) => (
           <li
             key={f}

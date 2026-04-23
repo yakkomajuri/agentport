@@ -225,7 +225,7 @@ export function LogDetailPanel({ entry, onClose }: { entry: LogEntry; onClose: (
   // Stage 2: Decision (if there was an approval)
   if (approval && approval.decided_at) {
     const decisionLabel = approval.decision_mode
-      ? (DECISION_LABELS[approval.decision_mode] ?? approval.decision_mode)
+      ? DECISION_LABELS[approval.decision_mode] ?? approval.decision_mode
       : 'Decided'
     const decisionStatus: StageStatus = approval.status === 'denied' ? 'error' : 'success'
 

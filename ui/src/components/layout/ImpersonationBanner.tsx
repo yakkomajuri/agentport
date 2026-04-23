@@ -37,7 +37,9 @@ export function ImpersonationBanner() {
         borderBottom: '1px solid rgba(0,0,0,0.15)',
       }}
     >
-      <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div
+        style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
         Impersonating <strong>{email}</strong> — signed in as {impersonatorEmail}
       </div>
       <button

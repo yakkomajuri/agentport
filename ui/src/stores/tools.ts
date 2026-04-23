@@ -46,9 +46,7 @@ export const useToolsStore = create<ToolsState>((set) => ({
 
   patchToolMode: (toolName, mode) =>
     set((state) => ({
-      tools: state.tools.map((t) =>
-        t.name === toolName ? { ...t, execution_mode: mode } : t,
-      ),
+      tools: state.tools.map((t) => (t.name === toolName ? { ...t, execution_mode: mode } : t)),
     })),
 
   clear: () => set({ tools: [], loading: false, error: null }),

@@ -171,7 +171,8 @@ export function Header({ onOpenDrawer }: HeaderProps) {
                     cursor: 'pointer',
                   }}
                   onMouseEnter={(e) =>
-                    ((e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)')
+                    ((e.currentTarget as HTMLButtonElement).style.background =
+                      'var(--surface-hover)')
                   }
                   onMouseLeave={(e) =>
                     ((e.currentTarget as HTMLButtonElement).style.background = 'none')

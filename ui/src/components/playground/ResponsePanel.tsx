@@ -86,8 +86,7 @@ export function ResponsePanel({
   const showDuration =
     !running && !awaitingApproval && durationMs !== null && result?.status === 'ok'
 
-  const approvalData =
-    result?.status === 'approval_required' ? result.data : null
+  const approvalData = result?.status === 'approval_required' ? result.data : null
   const showApprovalActions =
     !running && (awaitingApproval || result?.status === 'approval_required')
 
@@ -154,7 +153,7 @@ export function ResponsePanel({
           <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, lineHeight: 1.5 }}>
             {awaitingApproval
               ? 'Polling for approval every 2 seconds. Approve in the drawer and the call will auto-retry.'
-              : (approvalData?.message ?? 'Approval required before this tool can run.')}
+              : approvalData?.message ?? 'Approval required before this tool can run.'}
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button size="sm" onClick={onOpenDrawer}>
@@ -193,13 +192,29 @@ export function ResponsePanel({
       )}
 
       {!running && result?.status === 'denied' && (
-        <p style={{ marginTop: 10, fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5, margin: '10px 0 0' }}>
+        <p
+          style={{
+            marginTop: 10,
+            fontSize: 12,
+            color: 'var(--text-dim)',
+            lineHeight: 1.5,
+            margin: '10px 0 0',
+          }}
+        >
           {result.data.message}
         </p>
       )}
 
       {!running && result?.status === 'error' && (
-        <p style={{ marginTop: 10, fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5, margin: '10px 0 0' }}>
+        <p
+          style={{
+            marginTop: 10,
+            fontSize: 12,
+            color: 'var(--text-dim)',
+            lineHeight: 1.5,
+            margin: '10px 0 0',
+          }}
+        >
           {result.message}
         </p>
       )}
@@ -287,7 +302,13 @@ function ResultBlock({ text }: { text: string }) {
       }}
     >
       {tokens.map((tok, i) =>
-        tok.color ? <span key={i} style={{ color: tok.color }}>{tok.text}</span> : tok.text
+        tok.color ? (
+          <span key={i} style={{ color: tok.color }}>
+            {tok.text}
+          </span>
+        ) : (
+          tok.text
+        ),
       )}
     </pre>
   )

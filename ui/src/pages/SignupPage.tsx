@@ -63,15 +63,35 @@ export default function SignupPage() {
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <img
-            src={theme === 'dark' ? '/logos/agentport-dark-mode.png' : '/logos/agentport-light-mode.png'}
+            src={
+              theme === 'dark'
+                ? '/logos/agentport-dark-mode.png'
+                : '/logos/agentport-light-mode.png'
+            }
             alt="AgentPort"
             style={{ height: 22, width: 'auto' }}
           />
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 600, color: 'var(--text)', letterSpacing: 0.3 }}>
+          <span
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: 18,
+              fontWeight: 600,
+              color: 'var(--text)',
+              letterSpacing: 0.3,
+            }}
+          >
             AgentPort
           </span>
         </div>
-        <h1 style={{ fontSize: isDesktop ? 26 : 24, fontWeight: 700, color: 'var(--text)', margin: 0, marginBottom: 6 }}>
+        <h1
+          style={{
+            fontSize: isDesktop ? 26 : 24,
+            fontWeight: 700,
+            color: 'var(--text)',
+            margin: 0,
+            marginBottom: 6,
+          }}
+        >
           Create an account
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-dim)', margin: 0 }}>
@@ -91,7 +111,9 @@ export default function SignupPage() {
 
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <Label htmlFor="email" style={labelStyle}>Email</Label>
+          <Label htmlFor="email" style={labelStyle}>
+            Email
+          </Label>
           <Input
             id="email"
             type="email"
@@ -103,7 +125,9 @@ export default function SignupPage() {
           />
         </div>
         <div>
-          <Label htmlFor="password" style={labelStyle}>Password</Label>
+          <Label htmlFor="password" style={labelStyle}>
+            Password
+          </Label>
           <Input
             id="password"
             type="password"
@@ -115,7 +139,9 @@ export default function SignupPage() {
           />
         </div>
         <div>
-          <Label htmlFor="confirm-password" style={labelStyle}>Confirm password</Label>
+          <Label htmlFor="confirm-password" style={labelStyle}>
+            Confirm password
+          </Label>
           <Input
             id="confirm-password"
             type="password"
@@ -129,14 +155,27 @@ export default function SignupPage() {
 
         {error && <p style={{ fontSize: 12, color: 'var(--red)', margin: 0 }}>{error}</p>}
 
-        <Button type="submit" disabled={loading} style={{ width: '100%', marginTop: 4, height: 40 }}>
+        <Button
+          type="submit"
+          disabled={loading}
+          style={{ width: '100%', marginTop: 4, height: 40 }}
+        >
           {loading ? 'Creating account...' : 'Create account'}
         </Button>
       </form>
 
-      <p style={{ fontSize: 12, color: 'var(--text-faint)', textAlign: 'center', margin: '16px 0 0' }}>
+      <p
+        style={{
+          fontSize: 12,
+          color: 'var(--text-faint)',
+          textAlign: 'center',
+          margin: '16px 0 0',
+        }}
+      >
         Already have an account?{' '}
-        <Link to={loginHref} style={linkStyle}>Sign in</Link>
+        <Link to={loginHref} style={linkStyle}>
+          Sign in
+        </Link>
       </p>
     </div>
   )

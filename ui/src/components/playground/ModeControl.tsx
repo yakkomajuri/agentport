@@ -32,7 +32,7 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
   const currentConfig = TOOL_MODES.find((m) => m.mode === mode) ?? TOOL_MODES[1]
   const CurrentIcon = currentConfig.icon
 
-  const pendingConfig = pendingMode ? (TOOL_MODES.find((m) => m.mode === pendingMode) ?? null) : null
+  const pendingConfig = pendingMode ? TOOL_MODES.find((m) => m.mode === pendingMode) ?? null : null
   const hasChange = pendingMode !== null && pendingMode !== (mode ?? 'require_approval')
 
   function handleOpen() {
@@ -130,7 +130,9 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
           cursor: 'pointer',
           flexShrink: 0,
           whiteSpace: 'nowrap',
-          outline: open ? `2px solid color-mix(in srgb, ${currentConfig.color} 35%, transparent)` : 'none',
+          outline: open
+            ? `2px solid color-mix(in srgb, ${currentConfig.color} 35%, transparent)`
+            : 'none',
           outlineOffset: 1,
           transition: 'outline 100ms',
         }}
@@ -226,7 +228,11 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
                   >
                     <MIcon
                       size={13}
-                      style={{ color: isSelected ? m.color : 'var(--text-faint)', marginTop: 2, flexShrink: 0 }}
+                      style={{
+                        color: isSelected ? m.color : 'var(--text-faint)',
+                        marginTop: 2,
+                        flexShrink: 0,
+                      }}
                     />
                     <div>
                       <div
@@ -283,8 +289,8 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
                   />
                   <span style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.45 }}>
                     This updates the real setting for{' '}
-                    <span style={{ fontWeight: 500, color: 'var(--text)' }}>{toolName}</span> —
-                    not just in the playground. Applies to all agents and API calls.
+                    <span style={{ fontWeight: 500, color: 'var(--text)' }}>{toolName}</span> — not
+                    just in the playground. Applies to all agents and API calls.
                   </span>
                 </div>
 

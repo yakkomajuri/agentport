@@ -57,10 +57,7 @@ function Tooltip({ children, label }: { children: React.ReactNode; label: string
       onMouseLeave={() => setPos(null)}
     >
       {children}
-      {pos && createPortal(
-        <TooltipPopup label={label} cx={pos.cx} y={pos.y} />,
-        document.body,
-      )}
+      {pos && createPortal(<TooltipPopup label={label} cx={pos.cx} y={pos.y} />, document.body)}
     </div>
   )
 }
@@ -81,22 +78,15 @@ function formatDuration(ms: number): string {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
 }
 
-
 const ACCESS_LABELS: Record<string, { label: string; color: string }> = {
-  approved_once:  { label: 'approved once',   color: 'var(--green)' },
+  approved_once: { label: 'approved once', color: 'var(--green)' },
   approved_exact: { label: 'approved forever', color: 'var(--green)' },
-  approved_any:   { label: 'never ask again',  color: 'var(--blue)' },
+  approved_any: { label: 'never ask again', color: 'var(--blue)' },
 }
 
 type ApprovalAction = 'once' | 'forever' | 'tool' | 'deny'
 
-function ApprovalActions({
-  approvalId,
-  onDone,
-}: {
-  approvalId: string
-  onDone: () => void
-}) {
+function ApprovalActions({ approvalId, onDone }: { approvalId: string; onDone: () => void }) {
   const [acting, setActing] = useState<ApprovalAction | null>(null)
 
   async function act(action: ApprovalAction, e: React.MouseEvent) {
@@ -104,20 +94,19 @@ function ApprovalActions({
     if (acting) return
     setActing(action)
     try {
-      if (action === 'once')    await api.approvals.approveOnce(approvalId)
+      if (action === 'once') await api.approvals.approveOnce(approvalId)
       if (action === 'forever') await api.approvals.approveForever(approvalId)
-      if (action === 'tool')    await api.approvals.allowTool(approvalId)
-      if (action === 'deny')    await api.approvals.deny(approvalId)
+      if (action === 'tool') await api.approvals.allowTool(approvalId)
+      if (action === 'deny') await api.approvals.deny(approvalId)
       onDone()
-    } catch { /* parent refetch will reflect reality */ }
-    finally { setActing(null) }
+    } catch {
+      /* parent refetch will reflect reality */
+    } finally {
+      setActing(null)
+    }
   }
 
-  function btn(
-    action: ApprovalAction,
-    icon: React.ReactNode,
-    hoverColor: string,
-  ) {
+  function btn(action: ApprovalAction, icon: React.ReactNode, hoverColor: string) {
     const isActive = acting === action
     return (
       <button
@@ -152,9 +141,7 @@ function ApprovalActions({
           }
         }}
       >
-        {isActive
-          ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} />
-          : icon}
+        {isActive ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : icon}
       </button>
     )
   }
@@ -165,28 +152,34 @@ function ApprovalActions({
       onClick={(e) => e.stopPropagation()}
     >
       <Tooltip label="Approve this call once">
-        {btn('once',    <Check size={12} />,       'var(--green)')}
+        {btn('once', <Check size={12} />, 'var(--green)')}
       </Tooltip>
       <Tooltip label="Always approve with these exact params">
-        {btn('forever', <CheckCheck size={12} />,  'var(--green)')}
+        {btn('forever', <CheckCheck size={12} />, 'var(--green)')}
       </Tooltip>
       <Tooltip label="Always approve any call to this tool">
-        {btn('tool',    <ShieldCheck size={12} />, 'var(--blue)')}
+        {btn('tool', <ShieldCheck size={12} />, 'var(--blue)')}
       </Tooltip>
-      <Tooltip label="Deny this request">
-        {btn('deny',    <X size={12} />,           'var(--red)')}
-      </Tooltip>
+      <Tooltip label="Deny this request">{btn('deny', <X size={12} />, 'var(--red)')}</Tooltip>
     </div>
   )
 }
 
 const OUTCOME_PILL: Record<string, { label: string; bg: string; color: string }> = {
-  executed: { label: 'Executed',         bg: 'var(--badge-green-bg)',  color: 'var(--badge-green-text)'  },
-  error:    { label: 'Error',            bg: 'var(--badge-red-bg)',    color: 'var(--badge-red-text)'    },
-  denied:   { label: 'Blocked',          bg: 'var(--badge-red-bg)',    color: 'var(--badge-red-text)'    },
-  pending:  { label: 'Awaiting Approval',bg: 'var(--badge-amber-bg)',  color: 'var(--badge-amber-text)'  },
-  approved: { label: 'Waiting for Agent',bg: 'var(--badge-blue-bg)',   color: 'var(--badge-blue-text)'   },
-  expired:  { label: 'Expired',          bg: 'var(--badge-gray-bg)',   color: 'var(--badge-gray-text)'   },
+  executed: { label: 'Executed', bg: 'var(--badge-green-bg)', color: 'var(--badge-green-text)' },
+  error: { label: 'Error', bg: 'var(--badge-red-bg)', color: 'var(--badge-red-text)' },
+  denied: { label: 'Blocked', bg: 'var(--badge-red-bg)', color: 'var(--badge-red-text)' },
+  pending: {
+    label: 'Awaiting Approval',
+    bg: 'var(--badge-amber-bg)',
+    color: 'var(--badge-amber-text)',
+  },
+  approved: {
+    label: 'Waiting for Agent',
+    bg: 'var(--badge-blue-bg)',
+    color: 'var(--badge-blue-text)',
+  },
+  expired: { label: 'Expired', bg: 'var(--badge-gray-bg)', color: 'var(--badge-gray-text)' },
 }
 
 export function LogCard({
@@ -199,15 +192,13 @@ export function LogCard({
   onAction?: () => void
 }) {
   const isPending = entry.outcome === 'pending'
-  const isError   = entry.outcome === 'error'
+  const isError = entry.outcome === 'error'
   const isExpired =
-    isPending &&
-    !!entry.approval_expires_at &&
-    new Date(entry.approval_expires_at) <= new Date()
+    isPending && !!entry.approval_expires_at && new Date(entry.approval_expires_at) <= new Date()
 
   const pill = isExpired
     ? OUTCOME_PILL.expired
-    : (OUTCOME_PILL[entry.outcome ?? 'executed'] ?? OUTCOME_PILL.executed)
+    : OUTCOME_PILL[entry.outcome ?? 'executed'] ?? OUTCOME_PILL.executed
   const accessTag = entry.access_reason ? ACCESS_LABELS[entry.access_reason] : null
 
   return (
@@ -236,48 +227,56 @@ export function LogCard({
     >
       {/* Top row: tool name · pill · access tag · spacer · duration or approval actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-        <span style={{
-          fontSize: 13,
-          fontWeight: 500,
-          color: 'var(--text)',
-          whiteSpace: 'nowrap',
-        }}>
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 500,
+            color: 'var(--text)',
+            whiteSpace: 'nowrap',
+          }}
+        >
           {entry.tool_name}
         </span>
 
-        <span style={{
-          fontSize: 11,
-          fontWeight: 500,
-          padding: '2px 7px',
-          borderRadius: 999,
-          background: pill.bg,
-          color: pill.color,
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-        }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            padding: '2px 7px',
+            borderRadius: 999,
+            background: pill.bg,
+            color: pill.color,
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
           {pill.label}
         </span>
 
         {accessTag && (
-          <span style={{
-            fontSize: 11,
-            color: accessTag.color,
-            fontWeight: 500,
-            opacity: 0.85,
-            whiteSpace: 'nowrap',
-          }}>
+          <span
+            style={{
+              fontSize: 11,
+              color: accessTag.color,
+              fontWeight: 500,
+              opacity: 0.85,
+              whiteSpace: 'nowrap',
+            }}
+          >
             {accessTag.label}
           </span>
         )}
 
         {isError && entry.error && (
-          <span style={{
-            fontSize: 11,
-            color: 'var(--text-faint)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>
+          <span
+            style={{
+              fontSize: 11,
+              color: 'var(--text-faint)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {entry.error}
           </span>
         )}
@@ -285,19 +284,18 @@ export function LogCard({
         <div style={{ flex: 1 }} />
 
         {isPending && !isExpired && entry.approval_request_id ? (
-          <ApprovalActions
-            approvalId={entry.approval_request_id}
-            onDone={() => onAction?.()}
-          />
+          <ApprovalActions approvalId={entry.approval_request_id} onDone={() => onAction?.()} />
         ) : (
-          <span style={{
-            fontSize: 11,
-            color: 'var(--text-faint)',
-            fontFamily: 'var(--font-mono, monospace)',
-            fontVariantNumeric: 'tabular-nums',
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-          }}>
+          <span
+            style={{
+              fontSize: 11,
+              color: 'var(--text-faint)',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontVariantNumeric: 'tabular-nums',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
             {entry.duration_ms != null ? formatDuration(entry.duration_ms) : '—'}
           </span>
         )}
@@ -305,15 +303,15 @@ export function LogCard({
 
       {/* Bottom row: timestamp · api key */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>
-          {timeAgo(entry.timestamp)}
-        </span>
+        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{timeAgo(entry.timestamp)}</span>
         {(entry.api_key_prefix || entry.api_key_label) && (
-          <span style={{
-            fontSize: 11,
-            color: 'var(--text-faint)',
-            fontFamily: 'var(--font-mono, monospace)',
-          }}>
+          <span
+            style={{
+              fontSize: 11,
+              color: 'var(--text-faint)',
+              fontFamily: 'var(--font-mono, monospace)',
+            }}
+          >
             · {entry.api_key_prefix ?? ''}
             {entry.api_key_label && (
               <span style={{ fontFamily: 'var(--font-sans, sans-serif)' }}>

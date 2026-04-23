@@ -17,10 +17,7 @@ function readPendingVerification(): PendingEmailVerification | null {
 
   try {
     const parsed = JSON.parse(raw) as Partial<PendingEmailVerification>
-    if (
-      typeof parsed.email !== 'string' ||
-      typeof parsed.verificationToken !== 'string'
-    ) {
+    if (typeof parsed.email !== 'string' || typeof parsed.verificationToken !== 'string') {
       return null
     }
 

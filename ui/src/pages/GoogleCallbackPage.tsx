@@ -8,7 +8,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   missing_code: 'Google did not return an authorization code. Please try again.',
   token_exchange_failed: 'Google sign-in failed during token exchange. Please try again.',
   missing_profile: 'Google did not return the expected profile. Please try again.',
-  signups_disabled: 'New sign-ups are disabled on this server. Ask an admin to create your account.',
+  signups_disabled:
+    'New sign-ups are disabled on this server. Ask an admin to create your account.',
   not_on_waitlist: 'Email not on waitlist.',
   self_hosted_org_exists:
     'This server already has an organization. Sign in with the existing owner account.',

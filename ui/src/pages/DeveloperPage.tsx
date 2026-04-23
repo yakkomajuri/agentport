@@ -225,7 +225,8 @@ export default function DeveloperPage() {
         lang: 'json',
       },
       {
-        instruction: 'Start a Claude Code session and run `/mcp` to go through the authentication flow.',
+        instruction:
+          'Start a Claude Code session and run `/mcp` to go through the authentication flow.',
         code: '',
         lang: 'text',
       },
@@ -258,7 +259,8 @@ export default function DeveloperPage() {
     ],
     openclaw: [
       {
-        instruction: 'Generate an API key in the API Keys section below. This API key is suitable for agents to have access to.',
+        instruction:
+          'Generate an API key in the API Keys section below. This API key is suitable for agents to have access to.',
         code: '',
         lang: 'text',
       },
@@ -270,7 +272,8 @@ export default function DeveloperPage() {
     ],
     hermes: [
       {
-        instruction: 'Generate an API key in the API Keys section below. This API key is suitable for agents to have access to.',
+        instruction:
+          'Generate an API key in the API Keys section below. This API key is suitable for agents to have access to.',
         code: '',
         lang: 'text',
       },
@@ -436,17 +439,14 @@ export default function DeveloperPage() {
                     </code>
                   ) : (
                     <span key={i}>{part}</span>
-                  )
+                  ),
                 )}
               </span>
             </div>
           )
           if (!step.code) {
             return (
-              <div
-                key={stepId}
-                style={{ marginBottom: isLast ? 32 : 12 }}
-              >
+              <div key={stepId} style={{ marginBottom: isLast ? 32 : 12 }}>
                 {instructionRow}
               </div>
             )

@@ -167,7 +167,7 @@ export interface LogEntry {
   user_agent?: string | null
   api_key_label?: string | null
   api_key_prefix?: string | null
-  access_reason?: string | null  // approved_once | approved_exact | approved_any | null
+  access_reason?: string | null // approved_once | approved_exact | approved_any | null
   approval_expires_at?: string | null
   additional_info?: string | null
 }
@@ -448,8 +448,7 @@ export const api = {
       if (res.status === 403) {
         if (body.error === 'approval_required')
           return { status: 'approval_required', data: body as ToolCallApprovalRequired }
-        if (body.error === 'denied')
-          return { status: 'denied', data: body as ToolCallDenied }
+        if (body.error === 'denied') return { status: 'denied', data: body as ToolCallDenied }
       }
       return { status: 'error', message: body.detail || `Request failed: ${res.status}` }
     },

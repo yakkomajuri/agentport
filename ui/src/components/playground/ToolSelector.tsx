@@ -80,7 +80,11 @@ export function ToolSelector({ tools, selected, onSelect, loading }: ToolSelecto
     }
   }, [open])
 
-  const placeholder = loading ? 'Loading…' : tools.length === 0 ? 'No tools available' : 'Select a tool…'
+  const placeholder = loading
+    ? 'Loading…'
+    : tools.length === 0
+      ? 'No tools available'
+      : 'Select a tool…'
 
   return (
     <div style={{ flex: 1, minWidth: 0 }}>

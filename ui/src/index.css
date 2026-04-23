@@ -133,8 +133,8 @@
   --syn-tag: #7ee787;
   --syn-variable: #ffa657;
   --card-bg: var(--surface);
-  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.20), 0 1px 2px rgba(0, 0, 0, 0.14);
-  --card-shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.18);
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.14);
+  --card-shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.18);
 
   --background: var(--content-bg);
   --foreground: var(--text);
@@ -207,10 +207,13 @@ body {
 
 /* ── Approval page: modal + bottom sheet ── */
 .approve-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4);
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
   z-index: 100;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .approve-modal {
   display: flex;
@@ -219,22 +222,34 @@ body {
   display: none;
 }
 .approve-sheet-panel {
-  position: fixed; bottom: 0; left: 0; right: 0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: var(--content-bg);
   border-radius: 16px 16px 0 0;
   height: 80vh;
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
   z-index: 101;
   animation: sheet-up 0.3s ease forwards;
   -webkit-overflow-scrolling: touch;
 }
 @keyframes sheet-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 @media (max-width: 640px) {
-  .approve-modal { display: none; }
-  .approve-sheet { display: block; }
+  .approve-modal {
+    display: none;
+  }
+  .approve-sheet {
+    display: block;
+  }
 }
 
 ::-webkit-scrollbar {

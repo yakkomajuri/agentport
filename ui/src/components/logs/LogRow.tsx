@@ -17,32 +17,29 @@ function formatDuration(ms: number): string {
 }
 
 const ACCESS_LABELS: Record<string, { label: string; color: string }> = {
-  approved_once:  { label: 'approved once',   color: 'var(--green)' },
+  approved_once: { label: 'approved once', color: 'var(--green)' },
   approved_exact: { label: 'approved forever', color: 'var(--green)' },
-  approved_any:   { label: 'never ask again',  color: 'var(--blue)' },
+  approved_any: { label: 'never ask again', color: 'var(--blue)' },
 }
 
-export function LogRow({
-  entry,
-  onClick,
-}: {
-  entry: LogEntry
-  onClick: () => void
-}) {
-  const isPending  = entry.outcome === 'pending'
+export function LogRow({ entry, onClick }: { entry: LogEntry; onClick: () => void }) {
+  const isPending = entry.outcome === 'pending'
   const isApproved = entry.outcome === 'approved'
-  const isError    = entry.outcome === 'error'
-  const isDenied   = entry.outcome === 'denied'
-  const isExpired  =
-    isPending &&
-    !!entry.approval_expires_at &&
-    new Date(entry.approval_expires_at) <= new Date()
+  const isError = entry.outcome === 'error'
+  const isDenied = entry.outcome === 'denied'
+  const isExpired =
+    isPending && !!entry.approval_expires_at && new Date(entry.approval_expires_at) <= new Date()
 
-  const dotColor = (isDenied || isError) ? 'var(--red)'
-    : isExpired  ? 'var(--text-faint)'
-    : isPending  ? 'var(--amber)'
-    : isApproved ? 'var(--blue, #4f8ef7)'
-    : 'var(--green)'
+  const dotColor =
+    isDenied || isError
+      ? 'var(--red)'
+      : isExpired
+        ? 'var(--text-faint)'
+        : isPending
+          ? 'var(--amber)'
+          : isApproved
+            ? 'var(--blue, #4f8ef7)'
+            : 'var(--green)'
 
   const accessTag = entry.access_reason ? ACCESS_LABELS[entry.access_reason] : null
 
@@ -64,25 +61,29 @@ export function LogRow({
     >
       {/* Outcome dot */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{
-          width: 7,
-          height: 7,
-          borderRadius: '50%',
-          background: dotColor,
-          flexShrink: 0,
-        }} />
+        <div
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            background: dotColor,
+            flexShrink: 0,
+          }}
+        />
       </div>
 
       {/* Main body */}
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{
-            fontSize: 13,
-            fontWeight: 500,
-            fontFamily: 'var(--font-mono, monospace)',
-            color: 'var(--text)',
-            whiteSpace: 'nowrap',
-          }}>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              fontFamily: 'var(--font-mono, monospace)',
+              color: 'var(--text)',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {entry.tool_name}
           </span>
           <span style={{ fontSize: 12, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
@@ -99,20 +100,20 @@ export function LogRow({
             </span>
           )}
           {accessTag && (
-            <span style={{
-              fontSize: 11,
-              color: accessTag.color,
-              fontWeight: 500,
-              whiteSpace: 'nowrap',
-              opacity: 0.85,
-            }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: accessTag.color,
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                opacity: 0.85,
+              }}
+            >
               · {accessTag.label}
             </span>
           )}
           {isDenied && (
-            <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 500 }}>
-              · blocked
-            </span>
+            <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 500 }}>· blocked</span>
           )}
           {isExpired && (
             <span style={{ fontSize: 11, color: 'var(--text-faint)', fontWeight: 500 }}>
@@ -120,14 +121,16 @@ export function LogRow({
             </span>
           )}
           {isError && (
-            <span style={{
-              fontSize: 11,
-              color: 'var(--red)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: 240,
-            }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--red)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: 240,
+              }}
+            >
               · {entry.error}
             </span>
           )}
@@ -137,11 +140,13 @@ export function LogRow({
             {timeAgo(entry.timestamp)}
           </span>
           {entry.api_key_label && (
-            <span style={{
-              fontSize: 11,
-              color: 'var(--text-faint)',
-              fontFamily: 'var(--font-mono, monospace)',
-            }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--text-faint)',
+                fontFamily: 'var(--font-mono, monospace)',
+              }}
+            >
               {entry.api_key_label}
             </span>
           )}
@@ -149,14 +154,16 @@ export function LogRow({
       </div>
 
       {/* Duration */}
-      <div style={{
-        fontSize: 11,
-        color: 'var(--text-faint)',
-        fontFamily: 'var(--font-mono, monospace)',
-        fontVariantNumeric: 'tabular-nums',
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
-      }}>
+      <div
+        style={{
+          fontSize: 11,
+          color: 'var(--text-faint)',
+          fontFamily: 'var(--font-mono, monospace)',
+          fontVariantNumeric: 'tabular-nums',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+        }}
+      >
         {entry.duration_ms != null ? formatDuration(entry.duration_ms) : '—'}
       </div>
 

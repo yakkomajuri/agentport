@@ -222,10 +222,7 @@ function WaitlistSection() {
         <>
           <SectionLabel>Approved emails</SectionLabel>
           <div style={panelStyle}>
-            <form
-              onSubmit={onAddEmail}
-              style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}
-            >
+            <form onSubmit={onAddEmail} style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
               <div style={{ flex: 1 }}>
                 <Label htmlFor="new-email" style={labelStyle}>
                   Email
@@ -252,9 +249,7 @@ function WaitlistSection() {
           </div>
 
           <div style={{ ...panelStyle, padding: 0, overflow: 'hidden' }}>
-            {entriesLoading && (
-              <div style={emptyStyle}>Loading…</div>
-            )}
+            {entriesLoading && <div style={emptyStyle}>Loading…</div>}
             {!entriesLoading && entries.length === 0 && (
               <div style={emptyStyle}>
                 No approved emails yet. Add one above to let them sign up.
@@ -353,8 +348,8 @@ function UsersSection({ currentEmail }: { currentEmail: string }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={panelTitleStyle}>Impersonate a user</div>
             <div style={panelSubtitleStyle}>
-              Click a user to sign in as them. A banner will mark the session and let you return
-              to your admin account.
+              Click a user to sign in as them. A banner will mark the session and let you return to
+              your admin account.
             </div>
           </div>
         </div>
@@ -433,9 +428,7 @@ function UsersSection({ currentEmail }: { currentEmail: string }) {
                     {busy ? 'Impersonating…' : 'Impersonate'}
                   </Button>
                 )}
-                {isSelf && (
-                  <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>You</span>
-                )}
+                {isSelf && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>You</span>}
               </div>
             )
           })}

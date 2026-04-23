@@ -91,7 +91,15 @@ export function IntegrationSelector({
         {selected ? (
           <>
             <IntegrationLogo integration_id={selected.integration_id} size={18} />
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', flex: 1, textAlign: 'left' }}>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'var(--text)',
+                flex: 1,
+                textAlign: 'left',
+              }}
+            >
               {displayName(selected)}
             </span>
           </>
@@ -162,16 +170,17 @@ export function IntegrationSelector({
             </div>
             <div style={{ overflowY: 'auto', maxHeight: 240 }}>
               {installed
-                .filter((inst) =>
-                  displayName(inst).toLowerCase().includes(search.toLowerCase()),
-                )
+                .filter((inst) => displayName(inst).toLowerCase().includes(search.toLowerCase()))
                 .map((inst) => (
                   <IntegrationOption
                     key={inst.integration_id}
                     inst={inst}
                     label={displayName(inst)}
                     active={selected?.integration_id === inst.integration_id}
-                    onSelect={() => { onSelect(inst); close() }}
+                    onSelect={() => {
+                      onSelect(inst)
+                      close()
+                    }}
                   />
                 ))}
             </div>
@@ -206,7 +215,11 @@ function IntegrationOption({
         padding: '6px 10px',
         borderRadius: 5,
         cursor: 'pointer',
-        background: active ? 'var(--surface-selected)' : hovered ? 'var(--surface-hover)' : 'transparent',
+        background: active
+          ? 'var(--surface-selected)'
+          : hovered
+            ? 'var(--surface-hover)'
+            : 'transparent',
       }}
     >
       <IntegrationLogo integration_id={inst.integration_id} size={20} />

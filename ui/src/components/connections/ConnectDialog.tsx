@@ -46,8 +46,11 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
   const location = useLocation()
   const navigate = useNavigate()
   const install = useConnectionsStore((s) => s.install)
-  const defaultMethod = integration?.auth.find((a) => a.method === 'oauth' || a.method === 'token')?.method ?? 'oauth'
-  const [authMethod, setAuthMethod] = useState<'oauth' | 'token'>(defaultMethod as 'oauth' | 'token')
+  const defaultMethod =
+    integration?.auth.find((a) => a.method === 'oauth' || a.method === 'token')?.method ?? 'oauth'
+  const [authMethod, setAuthMethod] = useState<'oauth' | 'token'>(
+    defaultMethod as 'oauth' | 'token',
+  )
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -107,7 +110,13 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
       if (limit) {
         setLimitError(limit)
       } else {
-        setError(err instanceof Error ? err.message : reauth ? 'Failed to re-authenticate' : 'Failed to connect')
+        setError(
+          err instanceof Error
+            ? err.message
+            : reauth
+              ? 'Failed to re-authenticate'
+              : 'Failed to connect',
+        )
       }
     } finally {
       setLoading(false)
@@ -175,7 +184,14 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
                   href={integration.docs_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ fontSize: 13, color: '#3b82f6', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  style={{
+                    fontSize: 13,
+                    color: '#3b82f6',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
                   onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
                   onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
                 >
@@ -258,8 +274,12 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
           ) : (
             <Button size="default" onClick={handleSubmit} disabled={loading}>
               {loading
-                ? reauth ? 'Re-authenticating...' : 'Connecting...'
-                : reauth ? 'Re-authenticate' : 'Connect'}
+                ? reauth
+                  ? 'Re-authenticating...'
+                  : 'Connecting...'
+                : reauth
+                  ? 'Re-authenticate'
+                  : 'Connect'}
             </Button>
           )}
         </DialogFooter>

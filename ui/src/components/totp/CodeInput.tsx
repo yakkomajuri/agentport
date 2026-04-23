@@ -78,10 +78,7 @@ export function CodeInput({
       {Array.from({ length }).map((_, i) => {
         const isGap = i === Math.floor((length - 1) / 2)
         return (
-          <div
-            key={i}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               ref={(el) => {
                 refs.current[i] = el

@@ -33,7 +33,8 @@ export function GoogleLoginButton({
         disabled={disabled || loading}
         style={buttonStyle}
         onMouseEnter={(e) => {
-          if (!disabled && !loading) e.currentTarget.style.background = 'var(--content-hover, rgba(127,127,127,0.08))'
+          if (!disabled && !loading)
+            e.currentTarget.style.background = 'var(--content-hover, rgba(127,127,127,0.08))'
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = 'var(--content-bg)'
