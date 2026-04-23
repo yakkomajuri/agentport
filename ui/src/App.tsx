@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { useConfigStore } from '@/stores/config'
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'))
 const SignupPage = lazy(() => import('@/pages/SignupPage'))
@@ -20,6 +21,13 @@ const OAuthSuccessPage = lazy(() => import('@/pages/OAuthSuccessPage'))
 const PlaygroundPage = lazy(() => import('@/pages/PlaygroundPage'))
 
 export default function App() {
+  const isSelfHosted = useConfigStore((s) => s.isSelfHosted)
+  const fetchConfig = useConfigStore((s) => s.fetch)
+
+  useEffect(() => {
+    fetchConfig()
+  }, [fetchConfig])
+
   return (
     <BrowserRouter>
       <Suspense
@@ -53,7 +61,7 @@ export default function App() {
             <Route path="/integrations/:integrationId" element={<ConnectionDetailPage />} />
             <Route path="/connect" element={<DeveloperPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/settings/billing" element={<BillingPage />} />
+            {!isSelfHosted && <Route path="/settings/billing" element={<BillingPage />} />}
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/playground" element={<PlaygroundPage />} />
           </Route>

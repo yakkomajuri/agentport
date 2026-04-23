@@ -44,6 +44,7 @@ from agent_port.api import (  # noqa: E402
     user_auth,
     users,
 )
+from agent_port.api import config as config_api  # noqa: E402
 from agent_port.config import settings  # noqa: E402
 from agent_port.mcp.asgi import mcp_asgi_app  # noqa: E402
 from agent_port.mcp.oauth_provider import oauth_provider  # noqa: E402
@@ -151,6 +152,7 @@ app.include_router(integrations.router)
 app.include_router(admin.router)
 app.include_router(api_keys.router)
 app.include_router(billing.router)
+app.include_router(config_api.router)
 app.include_router(users.router)
 app.include_router(user_auth.router)
 app.include_router(google_login.router)

@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { CreditCard, FlaskConical, KeyRound, Puzzle, Settings, X } from 'lucide-react'
 import { useThemeStore } from '../../stores/theme'
+import { useConfigStore } from '@/stores/config'
 
 const navItems = [
   { to: '/integrations', label: 'Integrations', icon: Puzzle },
@@ -8,10 +9,8 @@ const navItems = [
   { to: '/playground', label: 'Playground', icon: FlaskConical },
 ]
 
-const accountItems = [
-  { to: '/settings', label: 'Settings', icon: Settings },
-  { to: '/settings/billing', label: 'Billing', icon: CreditCard },
-]
+const billingItem = { to: '/settings/billing', label: 'Billing', icon: CreditCard }
+const settingsItem = { to: '/settings', label: 'Settings', icon: Settings }
 
 interface SidebarProps {
   mobile?: boolean
@@ -21,6 +20,8 @@ interface SidebarProps {
 export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
   const { pathname } = useLocation()
   const { theme } = useThemeStore()
+  const isSelfHosted = useConfigStore((s) => s.isSelfHosted)
+  const accountItems = isSelfHosted ? [settingsItem] : [settingsItem, billingItem]
 
   return (
     <aside

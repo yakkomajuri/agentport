@@ -547,6 +547,11 @@ export const api = {
       )
     },
   },
+  config: {
+    get() {
+      return request<{ is_self_hosted: boolean; billing_enabled: boolean }>('/config')
+    },
+  },
   billing: {
     getSubscription() {
       return request<SubscriptionResponse>('/billing/subscription')
