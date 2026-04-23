@@ -1,4 +1,4 @@
-<p align="center">
+<p align="left">
   <img src="docs/static/logos/agentport-light-mode.png#gh-light-mode-only" alt="AgentPort" width="40">
   <img src="docs/static/logos/agentport-dark-mode.png#gh-dark-mode-only" alt="AgentPort" width="40">
 </p>
