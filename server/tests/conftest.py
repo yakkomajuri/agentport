@@ -52,6 +52,7 @@ def _reset_rate_limit_state():
 
 _ENGINE_CONSUMER_MODULES = (
     "agent_port.db",
+    "agent_port.api.tool_approvals",
     "agent_port.api_client",
     "agent_port.mcp.asgi",
     "agent_port.mcp.client",
