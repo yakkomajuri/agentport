@@ -7,18 +7,13 @@
 
 AgentPort is an open source gateway to securely connect any service to autonomous agents 🦞.
 
-Securely means that agents never see your API keys, and that you control exactly what they can and can't do with approval policies.
-
-![Approval policies](docs/static/img/approval-policies.png)
-
 ## 🚀 Get started
 
 ### Try locally
 
-```sh
-git clone https://github.com/yakkomajuri/agentport
+Clone the repo and run:
 
-cd agentport
+```sh
 docker compose up
 ```
 
@@ -31,6 +26,24 @@ curl -fsSL https://install.agentport.sh | sh
 ### Cloud
 
 [app.agentport.sh](https://app.agentport.sh)
+
+## About
+
+AgentPort lets you connect any service to your agent or claw securely. 
+
+Securely means that agents never see your API keys, and that you control exactly what they can and can't do with approval policies.
+
+AgentPort ships with 50 integrations out of the box like Stripe, PostHog, GitHub, Gmail, Google Calendar, and a lot more are coming. Connecting to an integration takes a few clicks and it immediately makes it available to your agents, wherever AgentPort is connected. 
+
+You can then choose exactly what the agent can and can't do, as well as what tools it can use only with your approval. For example, `search_emails` on Gmail can be set to "Auto-approve", with `send_email` being set to "Ask for approval". On Stripe, you could have the agent auto-run `get_customer` but require your approval to run `create_refund`.
+
+Agents connect to AgentPort using either our [CLI](https://docs.agentport.sh/connect/cli) or our [MCP](https://docs.agentport.sh/connect/mcp).
+
+
+
+![Approval policies](docs/static/img/approval-policies.png)
+
+
 
 ## Approval policies
 
