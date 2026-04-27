@@ -38,7 +38,7 @@ You can then choose exactly what the agent can and can't do, as well as what too
 
 Agents connect to AgentPort using either our [CLI](https://docs.agentport.sh/connect/cli) or our [MCP](https://docs.agentport.sh/connect/mcp).
 
-![Approval policies](/raw/docs/static/img/approval-policies.png)
+![Approval policies](/assets/approval-policies.png)
 
 ## Philosophy
 
@@ -74,7 +74,7 @@ We log when a request to use a tool happened, when it was approved, the IP the r
 
 This means you have full visibility into what your agents are doing and how they work, as well as have complete logs for auditability and compliance purposes.
 
-![Logs](/raw/docs/static/img/logs.png)
+![Logs](/assets/logs.png)
 
 ## Connecting agents
 
