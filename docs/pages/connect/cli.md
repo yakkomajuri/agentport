@@ -124,7 +124,8 @@ List, describe, and call tools across installed integrations.
 |---------|---------|
 | `ap tools list` | List all tools. Use `--integration <id>` to scope to one integration. |
 | `ap tools describe --integration <id> --tool <name>` | Show the tool's description, execution mode, and full `inputSchema`. |
-| `ap tools call --integration <id> --tool <name> --args <json>` | Execute a tool. Pass `--info <text>` to record intent for reviewers. |
+| `ap tools call --integration <id> --tool <name> --args <json>` | Execute a tool. Pass `--info <text>` to record intent for reviewers, or `--wait` to keep waiting through approval gates and retry automatically. |
+| `ap tools await-approval --request-id <id>` | Wait for an approval decision. You can pass `--approval-url <url>` instead of `--request-id` if that's what you have. |
 
 Examples:
 
@@ -134,6 +135,14 @@ ap tools describe --integration github --tool create_issue -o json
 ap tools call --integration github --tool create_issue \
   --args '{"repo":"yakkomajuri/agent-port","title":"docs: typo"}' \
   --info "Filing the typo Sam noticed in the README." \
+  -o json
+ap tools call --integration github --tool create_issue \
+  --args '{"repo":"yakkomajuri/agent-port","title":"docs: typo"}' \
+  --info "Filing the typo Sam noticed in the README." \
+  --wait --wait-timeout 600 \
+  -o json
+ap tools await-approval \
+  --approval-url https://app.agentport.sh/approve/550e8400-e29b-41d4-a716-446655440000 \
   -o json
 ```
 
@@ -155,10 +164,18 @@ ap output toon
 | Exit code | Meaning | What to do |
 |-----------|---------|------------|
 | `0` | Success. Tool result on stdout. | Parse and use. |
-| `1` | Error or denied. Message on stderr (e.g. `Denied: ...`). | Stop. Don't retry, don't try a different tool to reach the same outcome. |
-| `2` | Approval required. Stderr contains `Approval required: <url>`. | Surface the URL to the human, wait for them to approve, then retry the **identical** command — changing `--args` invalidates the pending approval. |
+| `1` | Error, denial, or a non-awaitable approval state. Message on stderr. | Stop. Don't retry, don't try a different tool to reach the same outcome. |
+| `2` | Approval required, or still pending after `--wait-timeout`. Stderr contains `Approval required: <url>` or `Approval still pending: <url>`. | Surface the URL to the human. Either use `ap tools call --wait`, or wait separately with `ap tools await-approval` and then retry the **identical** command. |
 
 See [Tool Approvals](/tool-approvals) for how the approval flow works on the server side.
+
+`ap tools await-approval` also uses exit codes:
+
+| Exit code | Meaning | What to do |
+|-----------|---------|------------|
+| `0` | Approved. Stdout includes `status: "approved"`. | Retry the original `ap tools call` if you did not use `--wait`. |
+| `1` | Denied, expired, consumed, or invalid request. | Stop and surface the status. |
+| `2` | Still pending at the requested timeout. | Keep waiting or ask the human to decide. |
 
 ### Quick reference
 
@@ -170,6 +187,8 @@ See [Tool Approvals](/tool-approvals) for how the approval flow works on the ser
 | What tools does X expose? | `ap tools list --integration <id> -o json` |
 | What does tool Y take? | `ap tools describe --integration <id> --tool <name> -o json` |
 | Run tool Y | `ap tools call --integration <id> --tool <name> --args '<json>' --info '<why>' -o json` |
+| Run tool Y and wait through approvals | `ap tools call --integration <id> --tool <name> --args '<json>' --info '<why>' --wait -o json` |
+| Wait on an approval gate | `ap tools await-approval --approval-url '<url>' -o json` |
 
 ---
 

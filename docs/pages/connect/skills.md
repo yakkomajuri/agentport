@@ -64,7 +64,7 @@ It also covers the MCP-specific shape of approval-required responses and the **c
 
 The skill for code-running agents that **don't speak MCP** but can shell out. It teaches the `ap` command-line workflow end-to-end: check `ap auth status`, list installed integrations with `ap integrations list --installed`, list and describe tools, then call them with `ap tools call --integration … --tool … --args '<json>' --info '<why>'`.
 
-It also pins down the exit-code contract — `0` for success, `2` plus `Approval required: <url>` on stderr for an approval gate, `1` plus `Denied: …` for a hard block — so the agent can branch on outcomes reliably. Always passing `-o json` for stable, machine-readable output is treated as non-negotiable.
+It also pins down the CLI approval flow: either call with `--wait` so the CLI waits and retries automatically, or use `ap tools await-approval --approval-url …` / `--request-id …` explicitly after surfacing the approval URL. The exit-code contract is still stable — `0` for success, `2` for approval-required or still-pending states, `1` for denials and hard errors. Always passing `-o json` for stable, machine-readable output is treated as non-negotiable.
 
 **When it triggers:** the agent is running inside a code execution environment with shell access (sandboxes, CI, scripted automations) and reaches AgentPort through the `ap` binary. See [CLI](/connect/cli) for the CLI itself.
 

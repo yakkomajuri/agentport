@@ -1,0 +1,12 @@
+{
+  "depth": 5,
+  "defaultPort": 4444,
+  "assets": "./readme-assets",
+  "autoSave": true,
+  "autoSaveDelay": 1000,
+  "hideDirsWithoutMd": true,
+  "theme": "neutral-light",
+  "ignoreDirs": [],
+  "ignoreFiles": [],
+  "linkRoot": ""
+}

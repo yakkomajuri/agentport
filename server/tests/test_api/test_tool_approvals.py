@@ -1,10 +1,12 @@
 import asyncio
+from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlmodel import select
 
 from agent_port.approvals import events as approval_events
+from agent_port.config import settings
 from agent_port.models.tool_execution import ToolExecutionSetting
 
 
@@ -473,3 +475,68 @@ async def test_allow_tool_endpoint_notifies_waiters(client, session, test_org, _
 
     status = await asyncio.wait_for(waiter_task, timeout=1.0)
     assert status == "approved"
+
+
+@pytest.mark.anyio
+async def test_await_endpoint_returns_approved_after_approve_once(
+    client, session, test_org, _clean_events
+):
+    req = _seed_pending_request(session, test_org)
+
+    async def approver():
+        await asyncio.sleep(0.05)
+        resp = await client.post(f"/api/tool-approvals/requests/{req.id}/approve-once")
+        assert resp.status_code == 200
+
+    approver_task = asyncio.create_task(approver())
+    resp = await client.post(f"/api/tool-approvals/requests/{req.id}/await")
+    await approver_task
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "approved"
+    assert "retry the original tool call" in resp.json()["message"].lower()
+
+
+@pytest.mark.anyio
+async def test_await_endpoint_returns_denied_after_human_decision(
+    client, session, test_org, _clean_events
+):
+    req = _seed_pending_request(session, test_org)
+
+    async def denier():
+        await asyncio.sleep(0.05)
+        resp = await client.post(f"/api/tool-approvals/requests/{req.id}/deny")
+        assert resp.status_code == 200
+
+    denier_task = asyncio.create_task(denier())
+    resp = await client.post(f"/api/tool-approvals/requests/{req.id}/await")
+    await denier_task
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "denied"
+
+
+@pytest.mark.anyio
+async def test_await_endpoint_returns_pending_on_timeout(
+    client, session, test_org, _clean_events, monkeypatch
+):
+    req = _seed_pending_request(session, test_org)
+    monkeypatch.setattr(settings, "approval_long_poll_timeout_seconds", 0.1)
+
+    resp = await client.post(f"/api/tool-approvals/requests/{req.id}/await")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "pending"
+
+
+@pytest.mark.anyio
+async def test_await_endpoint_returns_expired_for_stale_request(client, session, test_org):
+    req = _seed_pending_request(session, test_org)
+    req.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    session.add(req)
+    session.commit()
+
+    resp = await client.post(f"/api/tool-approvals/requests/{req.id}/await")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "expired"

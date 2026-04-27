@@ -1,11 +1,8 @@
-<p align="left">
-  <img src="docs/static/logos/agentport-light-mode.png#gh-light-mode-only" alt="AgentPort" width="40">
-  <img src="docs/static/logos/agentport-dark-mode.png#gh-dark-mode-only" alt="AgentPort" width="40">
-</p>
-
 # AgentPort
 
 AgentPort is an open source gateway to securely connect any service to autonomous agents 🦞.
+
+![agentport-diagram (2).png](/assets/1777315695147-agentport-diagram-\(2\).png)
 
 ## 🚀 Get started
 
@@ -23,27 +20,37 @@ docker compose up
 curl -fsSL https://install.agentport.sh | sh
 ```
 
+See the [docs](https://docs.agentport.sh/self-host/install) for complete instructions.
+
 ### Cloud
 
 [app.agentport.sh](https://app.agentport.sh)
 
 ## About
 
-AgentPort lets you connect any service to your agent or claw securely. 
+AgentPort lets you connect any service to your agent or claw securely.
 
 Securely means that agents never see your API keys, and that you control exactly what they can and can't do with approval policies.
 
-AgentPort ships with 50 integrations out of the box like Stripe, PostHog, GitHub, Gmail, Google Calendar, and a lot more are coming. Connecting to an integration takes a few clicks and it immediately makes it available to your agents, wherever AgentPort is connected. 
+AgentPort ships with 50 integrations out of the box like Stripe, PostHog, GitHub, Gmail, Google Calendar, and a lot more are coming. Connecting to an integration takes a few clicks and it immediately makes it available to your agents, wherever AgentPort is connected.
 
 You can then choose exactly what the agent can and can't do, as well as what tools it can use only with your approval. For example, `search_emails` on Gmail can be set to "Auto-approve", with `send_email` being set to "Ask for approval". On Stripe, you could have the agent auto-run `get_customer` but require your approval to run `create_refund`.
 
 Agents connect to AgentPort using either our [CLI](https://docs.agentport.sh/connect/cli) or our [MCP](https://docs.agentport.sh/connect/mcp).
 
+![Approval policies](/raw/docs/static/img/approval-policies.png)
 
+## Philosophy
 
-![Approval policies](docs/static/img/approval-policies.png)
+AgentPort's goal is to let you deploy autonomous agents securely. By adding a security layer, our goal is to enable you to give your agents **more power.**
 
+Today we mostly follow all-or-nothing approaches: we give agents full access to a service or we don't give them access at all.
 
+With AgentPort, you can give your agents more tools that they can use when perfoming tasks for you, but ensuring they don't do anything dangerous.
+
+That way, you can give them access to Stripe, your email, and even bank APIs, so they can do work in an automated way, loop you in when needed, and then get right back to it.
+
+For instance, they gather all the information they need to send an email on your behalf and then you can let them send it with one click, rather than copy-pasting output, going to your email client, and sending it yourself.
 
 ## Approval policies
 
@@ -53,23 +60,11 @@ Currently, the supported approval policies are:
 * **Ask for approval**: When trying to call the tool the agent will get back a link that only you as a logged in user can approve. You will be approving the tool being called as well as the exact parameters so you retain full control. e.g. if you approve `create_refund` on Stripe with params `customerId=1234` and `amount=15` the agent can't then change the customer ID or the amount.
 * **Deny**: The agent can never use this tool.
 
-When you set a tool on AgentPort to have a policy of "Ask for approval", any time your agent tries to call that tool via the CLI or the MCP it will get a response back explaining that this tool is gated and that it requires human approval, as well as link to send to you for approval.
+When you set a tool on AgentPort to have a policy of "Ask for approval", any time your agent tries to call that tool via the CLI or the MCP it will get a response back explaining that this tool is gated and that it requires human approval, as well as link to send to you where you can approve the tool call based on the exact parameters.
 
-## Human approval
+![Screenshot 2026-04-27 at 15.53.02.png](/assets/1777315990898-Screenshot-2026-04-27-at-15.53.02.png)
 
-When you open an approval link you'll see something like this:
-
-![Approval screen](docs/static/img/approval-screen.png)
-
-The approval screen will only show to you as a logged in user, and the tokens the agent has access to for tool calling prevent it from approving its own requests. If your agent runs on a machine where you have AgentPort logged in, or you want to be extra cautious, you can also enable 2FA with an authenticator app for approving tool calls.
-
-The approval screen will show you the exact tool the agent is trying to call, as well as the exact parameters for you to approve or deny. If you approve the request, the agent will be able to run the tool call with those parameters only.
-
-Some integrations include declarations from the third-party service that the tool call is read-only, or that it's idempotent, so we also surface this on the approval screen, alongside the client ID, IP address of the agent, description of the tool, and an optional note from the agent explaining what it's trying to do.
-
-This approval gate is a way to ensure that hallucinations and prompt injection attacks are guarded against, since you can verify any destructive action before the agent takes it. It also gives you more freedom to give more power to your agents, since instead of just not giving it access to Stripe, your bank, or a production DB you can give it access to these services but guard against all risky operations. That way your agent can freely perform tasks for you and you'll just be looped in at key steps.
-
-On the approval screen, you can also select the "Always approve" option. This means that any calls to that tool with any params in the future will be approved automatically. This is useful because you can connect an integration and start using right away, while gradually setting tools to auto-approve as their usage comes along.
+P.S. You should probably deny requests like the one above.
 
 ## Logs
 
@@ -79,16 +74,25 @@ We log when a request to use a tool happened, when it was approved, the IP the r
 
 This means you have full visibility into what your agents are doing and how they work, as well as have complete logs for auditability and compliance purposes.
 
-![Logs](docs/static/img/logs.png)
+![Logs](/raw/docs/static/img/logs.png)
 
 ## Connecting agents
 
-AgentPort exposes your tools to agents in two ways:
+Your agents can connect to AgentPort using our MCP server:
 
-* **MCP** — a single aggregated `/mcp` endpoint that serves every integration you've connected. Drop it into Claude Desktop, Claude Code, Cursor, VS Code, Codex, or any other MCP-compatible client.
-* **CLI** — a standalone TypeScript CLI for scripting and for agents that don't speak MCP.
+```text
+https://app.agentport.sh/mcp
+```
 
-See the [docs](https://docs.agentport.sh) for per-client setup instructions.
+> Or `https://<your-domain>/mcp` if you're self-hosting.
+
+And they can also use our CLI, installable with `npm install -g agentport-cli` .
+
+You should also definitely be using the [AgentPort skills](https://github.com/yakkomajuri/agentport-skills) in order for agents to use AgentPort most effectively:
+
+```bash
+npx skills add yakkomajuri/agentport-skills
+```
 
 ## Docs
 

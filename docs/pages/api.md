@@ -344,6 +344,10 @@ When a tool requires approval and no matching policy exists, the call is blocked
 
 The agent should present the `approval_url` to the user. After the user approves, the agent retries the same call.
 
+If you want the server to hold the wait instead of sleeping in the client, use
+`POST /api/tool-approvals/requests/{request_id}/await`. The CLI wraps this as
+`ap tools await-approval`, and `ap tools call --wait` uses it automatically.
+
 ---
 
 ## Tool Settings
@@ -423,6 +427,35 @@ Get a single approval request by ID.
 ```
 
 `additional_info` is the optional rationale supplied by the caller at the time of the tool call, or `null`.
+
+### `POST /api/tool-approvals/requests/{request_id}/await`
+
+Agent-facing long-poll endpoint for approval decisions. This is the REST equivalent of the MCP
+`agentport__await_approval` flow, except it returns the current approval status and lets the caller
+retry the original tool call once the status becomes `approved`.
+
+**Body (optional):**
+```json
+{ "timeout_seconds": 30 }
+```
+
+If omitted, the server waits for up to `approval_long_poll_timeout_seconds` (default `240`).
+Larger requested values are capped to that server-side maximum.
+
+**Response:**
+```json
+{
+  "approval_request_id": "550e8400-...",
+  "integration_id": "github",
+  "tool_name": "create_issue",
+  "status": "approved",
+  "message": "Approved. Retry the original tool call to execute it.",
+  "expires_at": "2026-04-10T12:00:00",
+  "decision_mode": "approve_once"
+}
+```
+
+Possible `status` values include `pending`, `approved`, `denied`, `expired`, `consumed`, and `auto_approved`.
 
 ### `POST /api/tool-approvals/requests/{request_id}/approve-once`
 

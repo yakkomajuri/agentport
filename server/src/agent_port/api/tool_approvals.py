@@ -5,10 +5,12 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from sqlmodel import Session, col, select
 
 from agent_port.analytics import posthog_client
+from agent_port.api.schemas import AwaitApprovalRequest, AwaitApprovalResponse
 from agent_port.api.second_factor import require_second_factor
 from agent_port.approvals import events as approval_events
-from agent_port.db import get_session
-from agent_port.dependencies import get_current_org, get_current_user
+from agent_port.config import settings
+from agent_port.db import engine, get_session
+from agent_port.dependencies import AgentAuth, get_agent_auth, get_current_org, get_current_user
 from agent_port.models.log import LogEntry
 from agent_port.models.org import Org
 from agent_port.models.tool_approval_request import ToolApprovalRequest
@@ -28,6 +30,40 @@ def _update_pending_log(session: Session, approval_request_id: uuid.UUID, outcom
     if log:
         log.outcome = outcome
         session.add(log)
+
+
+def _effective_status(req: ToolApprovalRequest) -> str:
+    if req.status == "pending" and req.expires_at <= datetime.utcnow():
+        return "expired"
+    return req.status
+
+
+def _await_message(status: str) -> str:
+    if status == "approved":
+        return "Approved. Retry the original tool call to execute it."
+    if status == "denied":
+        return "This tool call was denied by the human."
+    if status == "pending":
+        return "Still pending — the human hasn't decided yet."
+    if status == "expired":
+        return "Approval request expired before it was approved."
+    if status == "consumed":
+        return "This approval was already consumed. Retry the original tool call to start over."
+    if status == "auto_approved":
+        return "This request is already auto-approved. Retry the original tool call instead."
+    return f"Approval request is '{status}'. Retry the original tool call to start over."
+
+
+def _build_await_response(req: ToolApprovalRequest, status: str) -> AwaitApprovalResponse:
+    return AwaitApprovalResponse(
+        approval_request_id=req.id,
+        integration_id=req.integration_id,
+        tool_name=req.tool_name,
+        status=status,
+        message=_await_message(status),
+        expires_at=req.expires_at,
+        decision_mode=req.decision_mode,
+    )
 
 
 @router.get("/requests")
@@ -68,6 +104,48 @@ def get_request(
     if not req or req.org_id != current_org.id:
         raise HTTPException(status_code=404, detail="Approval request not found")
     return req.model_dump()
+
+
+@router.post("/requests/{request_id}/await", response_model=AwaitApprovalResponse)
+async def await_request(
+    request_id: uuid.UUID,
+    body: AwaitApprovalRequest | None = Body(default=None),
+    agent_auth: AgentAuth = Depends(get_agent_auth),
+) -> AwaitApprovalResponse:
+    timeout_seconds = float(settings.approval_long_poll_timeout_seconds)
+    if body and body.timeout_seconds is not None:
+        timeout_seconds = min(timeout_seconds, float(body.timeout_seconds))
+
+    org_id = agent_auth.org.id
+
+    with Session(engine) as session:
+        req = session.get(ToolApprovalRequest, request_id)
+        if not req or req.org_id != org_id:
+            raise HTTPException(status_code=404, detail="Approval request not found")
+        status = _effective_status(req)
+
+    if status == "pending":
+
+        def _peek_status() -> str | None:
+            with Session(engine) as peek_session:
+                current = peek_session.get(ToolApprovalRequest, request_id)
+                if not current or current.org_id != org_id:
+                    return None
+                return _effective_status(current)
+
+        await approval_events.wait_for_decision(
+            request_id,
+            timeout=timeout_seconds,
+            pre_check=_peek_status,
+        )
+
+        with Session(engine) as session:
+            req = session.get(ToolApprovalRequest, request_id)
+            if not req or req.org_id != org_id:
+                raise HTTPException(status_code=404, detail="Approval request not found")
+            status = _effective_status(req)
+
+    return _build_await_response(req, status)
 
 
 @router.post("/requests/{request_id}/approve-once")
