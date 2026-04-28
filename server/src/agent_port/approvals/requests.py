@@ -6,7 +6,15 @@ from sqlmodel import Session, select
 from agent_port.approvals.normalize import hash_normalized_args, normalize_tool_args
 from agent_port.approvals.summarize import summarize_tool_call
 from agent_port.config import settings
+from agent_port.models.org import Org
 from agent_port.models.tool_approval_request import ToolApprovalRequest
+
+
+def _approval_expiry_minutes(session: Session, org_id: uuid.UUID) -> int:
+    org = session.get(Org, org_id)
+    if org is not None and org.approval_expiry_minutes is not None:
+        return org.approval_expiry_minutes
+    return settings.approval_expiry_minutes
 
 
 def get_or_create_approval_request(
@@ -58,7 +66,7 @@ def get_or_create_approval_request(
         status="pending",
         requested_by_agent=requested_by_agent,
         requested_at=now,
-        expires_at=now + timedelta(minutes=settings.approval_expiry_minutes),
+        expires_at=now + timedelta(minutes=_approval_expiry_minutes(session, org_id)),
         requester_ip=requester_ip,
         user_agent=user_agent,
         api_key_label=api_key_label,

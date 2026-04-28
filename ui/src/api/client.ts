@@ -266,6 +266,12 @@ export interface BillingRedirectResponse {
   url: string
 }
 
+export interface OrgSettingsResponse {
+  approval_expiry_minutes: number
+  approval_expiry_minutes_default: number
+  approval_expiry_minutes_override: number | null
+}
+
 // ── API ──
 
 export interface MessageResponse {
@@ -557,6 +563,17 @@ export const api = {
   config: {
     get() {
       return request<PublicConfig>('/config')
+    },
+  },
+  orgSettings: {
+    get() {
+      return request<OrgSettingsResponse>('/org-settings')
+    },
+    update(approval_expiry_minutes: number | null) {
+      return request<OrgSettingsResponse>('/org-settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ approval_expiry_minutes }),
+      })
     },
   },
   billing: {
