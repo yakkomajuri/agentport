@@ -33,30 +33,25 @@ export default function GoogleCallbackPage() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
   const clearPendingVerification = useEmailVerificationStore((s) => s.clearPendingVerification)
-  const [errorCode, setErrorCode] = useState<string | null>(null)
+  const [callbackParams] = useState(() => {
+    const params = parseHash(window.location.hash)
+    return {
+      token: params.access_token ?? '',
+      error:
+        params.error || new URLSearchParams(window.location.search).get('google_error') || null,
+    }
+  })
+  const errorCode = callbackParams.error || (!callbackParams.token ? 'login_failed' : null)
 
   useEffect(() => {
-    const params = parseHash(window.location.hash)
-    const token = params.access_token
-    const hashError = params.error
-    const queryError = new URLSearchParams(window.location.search).get('google_error')
-    const error = hashError || queryError
-
-    if (error) {
-      setErrorCode(error)
-      return
-    }
-    if (!token) {
-      setErrorCode('login_failed')
-      return
-    }
+    if (errorCode || !callbackParams.token) return
 
     // Clear the token from the URL so it isn't exposed to history/back button.
     window.history.replaceState(null, '', '/login/google/callback')
     clearPendingVerification()
-    setAuth(token)
+    setAuth(callbackParams.token)
     navigate('/integrations', { replace: true })
-  }, [setAuth, clearPendingVerification, navigate])
+  }, [callbackParams.token, clearPendingVerification, errorCode, navigate, setAuth])
 
   if (errorCode) {
     return (

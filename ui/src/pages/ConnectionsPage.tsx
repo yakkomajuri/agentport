@@ -16,7 +16,7 @@ export default function ConnectionsPage() {
   useEffect(() => {
     fetchIntegrations()
     fetchInstalled()
-  }, [])
+  }, [fetchInstalled, fetchIntegrations])
 
   const connectedInstalledIds = new Set(
     installed.filter((i) => i.connected).map((i) => i.integration_id),

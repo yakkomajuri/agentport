@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
@@ -11,11 +11,23 @@ export function AppLayout() {
   const isMobile = useIsMobile()
   const { pathname } = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const previousPathnameRef = useRef(pathname)
+  const previousIsMobileRef = useRef(isMobile)
 
-  // Close drawer when the route changes or when we grow out of mobile.
   useEffect(() => {
-    setDrawerOpen(false)
-  }, [pathname, isMobile])
+    const pathChanged = previousPathnameRef.current !== pathname
+    const mobileChanged = previousIsMobileRef.current !== isMobile
+
+    previousPathnameRef.current = pathname
+    previousIsMobileRef.current = isMobile
+
+    if (!drawerOpen || (!pathChanged && !mobileChanged)) return
+
+    // Defer the close so route and viewport changes do not synchronously
+    // cascade another render from inside the effect.
+    const timeoutId = window.setTimeout(() => setDrawerOpen(false), 0)
+    return () => window.clearTimeout(timeoutId)
+  }, [drawerOpen, isMobile, pathname])
 
   if (!token) return <Navigate to="/login" replace />
 

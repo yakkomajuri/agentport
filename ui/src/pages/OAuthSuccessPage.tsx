@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -7,14 +6,6 @@ export default function OAuthSuccessPage() {
   const [searchParams] = useSearchParams()
   const redirectUrl = searchParams.get('redirect') ?? ''
   const clientName = searchParams.get('client') ?? ''
-  const [callbackFired, setCallbackFired] = useState(false)
-
-  // Fire the redirect in a hidden iframe to deliver the auth code
-  // to the MCP client without navigating away from this page
-  useEffect(() => {
-    if (!redirectUrl || callbackFired) return
-    setCallbackFired(true)
-  }, [redirectUrl, callbackFired])
 
   const displayName = clientName || 'the app'
 
@@ -50,7 +41,7 @@ export default function OAuthSuccessPage() {
         </div>
 
         {/* Hidden iframe to deliver the auth code to the MCP client */}
-        {redirectUrl && callbackFired && (
+        {redirectUrl && (
           <iframe src={redirectUrl} style={{ display: 'none' }} title="OAuth callback" sandbox="" />
         )}
       </div>

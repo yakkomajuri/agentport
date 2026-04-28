@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { useConnectionsStore } from '@/stores/connections'
 import { api, ApiError } from '@/api/client'
 import type { BundledIntegration } from '@/api/client'
-import { LOGOS } from '@/components/connections/IntegrationCard'
+import { LOGOS } from '@/components/connections/logos'
 
 interface LimitError {
   message: string

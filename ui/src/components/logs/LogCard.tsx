@@ -5,16 +5,17 @@ import { api, type LogEntry } from '@/api/client'
 
 function TooltipPopup({ label, cx, y }: { label: string; cx: number; y: number }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [nudge, setNudge] = useState<number | null>(null)
 
   useLayoutEffect(() => {
-    if (!ref.current) return
-    const rect = ref.current.getBoundingClientRect()
+    const element = ref.current
+    if (!element) return
+    const rect = element.getBoundingClientRect()
     let n = 0
     if (rect.left < 8) n = 8 - rect.left
     else if (rect.right > window.innerWidth - 8) n = window.innerWidth - 8 - rect.right
-    setNudge(n)
-  }, [])
+    element.style.left = `${cx + n}px`
+    element.style.opacity = '1'
+  }, [cx, y])
 
   return (
     <div
@@ -22,9 +23,9 @@ function TooltipPopup({ label, cx, y }: { label: string; cx: number; y: number }
       style={{
         position: 'fixed',
         top: y - 6,
-        left: cx + (nudge ?? 0),
+        left: cx,
         transform: 'translate(-50%, -100%)',
-        opacity: nudge === null ? 0 : 1,
+        opacity: 0,
         background: 'var(--text)',
         color: 'var(--content-bg)',
         fontSize: 11,
