@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Key, ShieldCheck } from 'lucide-react'
+import { Clock, Key, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api, type TotpStatusResponse } from '@/api/client'
+import { api, type OrgSettingsResponse, type TotpStatusResponse } from '@/api/client'
 import { TotpCodeDialog } from '@/components/totp/TotpCodeDialog'
 import { TotpSetupDialog } from '@/components/totp/TotpSetupDialog'
 import { useIsMobile } from '@/lib/useMediaQuery'
@@ -70,6 +70,9 @@ export default function SettingsPage() {
           width: '100%',
         }}
       >
+        <SectionLabel>Approvals</SectionLabel>
+        <ApprovalExpiryPanel />
+
         <SectionLabel>Security</SectionLabel>
         <TwoFactorPanel />
 
@@ -142,6 +145,124 @@ export default function SettingsPage() {
         </div>
       </div>
     </>
+  )
+}
+
+const MIN_EXPIRY_MINUTES = 1
+const MAX_EXPIRY_MINUTES = 1440
+
+function ApprovalExpiryPanel() {
+  const [settings, setSettings] = useState<OrgSettingsResponse | null>(null)
+  const [draft, setDraft] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  useEffect(() => {
+    api.orgSettings
+      .get()
+      .then((s) => {
+        setSettings(s)
+        setDraft(String(s.approval_expiry_minutes))
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load approval settings'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function save(value: number | null) {
+    setError('')
+    setSuccess('')
+    setSaving(true)
+    try {
+      const next = await api.orgSettings.update(value)
+      setSettings(next)
+      setDraft(String(next.approval_expiry_minutes))
+      setSuccess(value === null ? 'Reverted to default.' : 'Saved.')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    const n = Number(draft)
+    if (!Number.isInteger(n) || n < MIN_EXPIRY_MINUTES || n > MAX_EXPIRY_MINUTES) {
+      setError(`Enter a whole number between ${MIN_EXPIRY_MINUTES} and ${MAX_EXPIRY_MINUTES}.`)
+      return
+    }
+    save(n)
+  }
+
+  const isOverridden = !!settings && settings.approval_expiry_minutes_override !== null
+  const defaultMinutes = settings?.approval_expiry_minutes_default ?? null
+
+  return (
+    <div style={panelStyle}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={panelIconStyle}>
+          <Clock size={14} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={panelTitleRowStyle}>
+            <div>
+              <div style={panelTitleStyle}>Approval request expiration</div>
+              <div style={panelSubtitleStyle}>
+                How long a pending approval stays valid before it expires. Applies to new requests
+                only.
+              </div>
+            </div>
+          </div>
+
+          {!loading && settings && (
+            <form
+              onSubmit={onSubmit}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}
+            >
+              <Input
+                type="number"
+                min={MIN_EXPIRY_MINUTES}
+                max={MAX_EXPIRY_MINUTES}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                style={{ ...inputStyle, width: 100 }}
+                disabled={saving}
+              />
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>minutes</span>
+              <Button type="submit" size="sm" disabled={saving}>
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+              {isOverridden && defaultMinutes !== null && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => save(null)}
+                  disabled={saving}
+                >
+                  Reset to default ({defaultMinutes}m)
+                </Button>
+              )}
+            </form>
+          )}
+
+          {!loading && settings && !isOverridden && defaultMinutes !== null && (
+            <div style={inlineMetaStyle}>
+              <span>Using instance default ({defaultMinutes} minutes).</span>
+            </div>
+          )}
+
+          {error && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 10 }}>{error}</div>}
+          {success && (
+            <div style={{ fontSize: 12, color: 'var(--green, #22c55e)', marginTop: 10 }}>
+              {success}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 

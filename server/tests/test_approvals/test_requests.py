@@ -10,7 +10,7 @@ from agent_port.approvals.requests import (
     get_or_create_approval_request,
     try_consume_approved_request,
 )
-from agent_port.models.org import Org  # noqa: F401
+from agent_port.models.org import Org
 from agent_port.models.tool_approval_request import ToolApprovalRequest
 from agent_port.models.user import User  # noqa: F401
 
@@ -41,6 +41,29 @@ def test_creates_new_request(db, org_id):
     assert req.integration_id == "github"
     assert req.tool_name == "create_issue"
     assert req.expires_at > datetime.utcnow()
+
+
+def test_uses_org_approval_expiry_override(db, org_id):
+    org = db.get(Org, org_id)
+    org.approval_expiry_minutes = 90
+    db.add(org)
+    db.commit()
+
+    before = datetime.utcnow()
+    req = get_or_create_approval_request(db, org_id, "github", "create_issue", {"title": "hi"})
+    delta = req.expires_at - before
+    # Allow a small fudge factor for test execution time.
+    assert timedelta(minutes=89) <= delta <= timedelta(minutes=91)
+
+
+def test_falls_back_to_settings_when_no_org_override(db, org_id):
+    from agent_port.config import settings
+
+    before = datetime.utcnow()
+    req = get_or_create_approval_request(db, org_id, "github", "create_issue", {"title": "hi"})
+    delta = req.expires_at - before
+    expected = timedelta(minutes=settings.approval_expiry_minutes)
+    assert expected - timedelta(seconds=5) <= delta <= expected + timedelta(seconds=5)
 
 
 def test_reuses_existing_pending_request(db, org_id):

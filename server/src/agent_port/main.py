@@ -35,6 +35,7 @@ from agent_port.api import (  # noqa: E402
     integrations,
     logs,
     oauth_server,
+    org_settings,
     password_change,
     password_reset,
     tool_approvals,
@@ -164,6 +165,7 @@ app.include_router(installed.router)
 app.include_router(auth.router)
 app.include_router(tools.router)
 app.include_router(tool_settings.router)
+app.include_router(org_settings.router)
 app.include_router(tool_approvals.router)
 app.include_router(logs.router)
 app.include_router(oauth_server.router)
