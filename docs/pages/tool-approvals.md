@@ -41,10 +41,19 @@ When a user chooses "allow tool forever", Agent Port updates that tool's executi
 pending → approved (approve_once) → consumed (on retry)
 pending → approved (allow_tool_forever) → tool mode set to allow
 pending → denied
-pending → expired (after 24 hours)
+pending → expired (after the configured expiry window)
 ```
 
 Duplicate blocked calls with the same arguments reuse the same pending request.
+
+## Approval expiration
+
+Pending approval requests expire after a configurable window. The instance default is set by `APPROVAL_EXPIRY_MINUTES` (defaults to 10 minutes). Each org can override this in **Settings → Approvals**, or via the API (1–1440 minutes):
+
+- `GET /api/org-settings` — read the current value and instance default
+- `PATCH /api/org-settings` — set `approval_expiry_minutes` (or `null` to revert to the default)
+
+The override applies to newly created requests; in-flight pending requests keep their original expiry.
 
 ## Policy evaluation order
 
@@ -61,6 +70,7 @@ See [API Reference](api.md) for full details:
 - `POST /api/tool-approvals/requests/{id}/approve-once` — one-time approval
 - `POST /api/tool-approvals/requests/{id}/allow-tool` — allow the tool without future approvals
 - `POST /api/tool-approvals/requests/{id}/deny` — deny request
+- `GET /api/org-settings` / `PATCH /api/org-settings` — read or change the org's approval expiry window
 
 ## Logging
 

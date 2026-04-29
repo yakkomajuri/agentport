@@ -388,6 +388,40 @@ Valid modes: `allow`, `require_approval`.
 
 ---
 
+## Org Settings
+
+Per-org runtime settings.
+
+### `GET /api/org-settings`
+
+Read the current org's settings.
+
+**Response:**
+```json
+{
+  "approval_expiry_minutes": 30,
+  "approval_expiry_minutes_default": 10,
+  "approval_expiry_minutes_override": 30
+}
+```
+
+`approval_expiry_minutes_override` is `null` when the org is using the instance default.
+
+### `PATCH /api/org-settings`
+
+Update the org's settings. Pass `null` to revert a field to the instance default.
+
+**Body:**
+```json
+{
+  "approval_expiry_minutes": 30
+}
+```
+
+`approval_expiry_minutes` must be between 1 and 1440. The new value applies to approval requests created after the change; existing pending requests keep their original expiry.
+
+---
+
 ## Tool Approvals
 
 Manage approval requests for blocked tool calls.
