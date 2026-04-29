@@ -65,80 +65,86 @@ export default function SettingsPage() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: isMobile ? '20px 14px 40px' : '32px 40px',
-          maxWidth: 640,
           width: '100%',
         }}
       >
-        <SectionLabel>Security</SectionLabel>
-        <TwoFactorPanel />
-
-        {/* Change Password */}
-        <SectionLabel>Change Password</SectionLabel>
-        <form
-          onSubmit={onChangePassword}
-          style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}
+        <div
+          style={{
+            padding: isMobile ? '20px 14px 40px' : '32px 40px',
+            maxWidth: 640,
+            width: '100%',
+          }}
         >
-          <div>
-            <Label htmlFor="current-password" style={labelStyle}>
-              Current password
-            </Label>
-            <Input
-              id="current-password"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <Label htmlFor="new-password" style={labelStyle}>
-              New password
-            </Label>
-            <Input
-              id="new-password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={6}
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <Label htmlFor="confirm-password" style={labelStyle}>
-              Confirm new password
-            </Label>
-            <Input
-              id="confirm-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={6}
-              style={inputStyle}
-            />
-          </div>
+          <SectionLabel>Security</SectionLabel>
+          <TwoFactorPanel />
 
-          {error && <p style={{ fontSize: 12, color: 'var(--red)', margin: 0 }}>{error}</p>}
-          {success && (
-            <p style={{ fontSize: 12, color: 'var(--green, #22c55e)', margin: 0 }}>{success}</p>
-          )}
+          {/* Change Password */}
+          <SectionLabel>Change Password</SectionLabel>
+          <form
+            onSubmit={onChangePassword}
+            style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}
+          >
+            <div>
+              <Label htmlFor="current-password" style={labelStyle}>
+                Current password
+              </Label>
+              <Input
+                id="current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-password" style={labelStyle}>
+                New password
+              </Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password" style={labelStyle}>
+                Confirm new password
+              </Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+                style={inputStyle}
+              />
+            </div>
 
+            {error && <p style={{ fontSize: 12, color: 'var(--red)', margin: 0 }}>{error}</p>}
+            {success && (
+              <p style={{ fontSize: 12, color: 'var(--green, #22c55e)', margin: 0 }}>{success}</p>
+            )}
+
+            <div>
+              <Button type="submit" size="sm" disabled={loading}>
+                {loading ? 'Changing...' : 'Change password'}
+              </Button>
+            </div>
+          </form>
+
+          {/* Danger Zone */}
+          <SectionLabel>Danger Zone</SectionLabel>
           <div>
-            <Button type="submit" size="sm" disabled={loading}>
-              {loading ? 'Changing...' : 'Change password'}
+            <Button variant="destructive" size="sm">
+              Delete Organization
             </Button>
           </div>
-        </form>
-
-        {/* Danger Zone */}
-        <SectionLabel>Danger Zone</SectionLabel>
-        <div>
-          <Button variant="destructive" size="sm">
-            Delete Organization
-          </Button>
         </div>
       </div>
     </>
