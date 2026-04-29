@@ -19,6 +19,9 @@
 
 set -eu
 
+echo 'This is the installation script for production installs of AgentPort. If you just want to try it out, clone https://github.com/yakkomajuri/agentport and run `docker compose up` instead'
+echo
+
 REPO_URL="${AGENTPORT_REPO:-https://github.com/yakkomajuri/agent-port.git}"
 BRANCH="${AGENTPORT_BRANCH:-main}"
 TARGET_DIR="${AGENTPORT_DIR:-agentport}"
