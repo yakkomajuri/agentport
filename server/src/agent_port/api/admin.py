@@ -142,7 +142,7 @@ def list_users(
     stmt = select(User)
     if q:
         stmt = stmt.where(User.email.ilike(f"%{q.strip()}%"))  # type: ignore[attr-defined]
-    stmt = stmt.order_by(User.email).limit(limit)  # type: ignore[arg-type]
+    stmt = stmt.order_by(User.created_at.desc()).limit(limit)  # type: ignore[arg-type,attr-defined]
     rows = session.exec(stmt).all()
     return [
         AdminUserResponse(
