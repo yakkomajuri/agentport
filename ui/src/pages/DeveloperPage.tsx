@@ -36,7 +36,7 @@ function tokenize(code: string, lang: Lang): Token[] {
   }
 
   if (lang === 'json') {
-    const re = /"[^"\\]*(?:\\.[^"\\]*)*"|[{}\[\],:]|\s+|[^"{}\[\],:\s]+/g
+    const re = /"[^"\\]*(?:\\.[^"\\]*)*"|(?:\[|\]|[{},:])|\s+|[^"[\]{},:\s]+/g
     for (const m of code.matchAll(re)) {
       const text = m[0]
       if (/^\s+$/.test(text)) {
@@ -48,7 +48,7 @@ function tokenize(code: string, lang: Lang): Token[] {
         } else {
           tokens.push({ text, color: 'var(--syn-string)' })
         }
-      } else if (/^[{}\[\],:]$/.test(text)) {
+      } else if (/^(?:\[|\]|[{},:])$/.test(text)) {
         tokens.push({ text, color: 'var(--text-faint)' })
       } else {
         tokens.push({ text })

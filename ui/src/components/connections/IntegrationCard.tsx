@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, Info } from 'lucide-react'
 import type { BundledIntegration } from '@/api/client'
+import { LOGOS } from './logos'
 
 interface Props {
   integration: BundledIntegration
@@ -177,73 +178,4 @@ export function IntegrationCard({ integration, isInstalled, onConnect }: Props) 
       </div>
     </div>
   )
-}
-
-export const LOGOS: Record<string, { src: string; darkInvert?: boolean }> = {
-  airtable: { src: '/logos/airtable.png' },
-  axiom: { src: '/logos/axiom.png', darkInvert: true },
-  amplitude: { src: '/logos/amplitude.svg' },
-  apify: { src: '/logos/apify.svg' },
-  asana: { src: '/logos/asana.svg' },
-  atlassian: { src: '/logos/atlassian.png' },
-  attio: { src: '/logos/attio.png', darkInvert: true },
-  box: { src: '/logos/box.svg' },
-  buildkite: { src: '/logos/buildkite.png' },
-  calendly: { src: '/logos/calendly.jpg' },
-  canva: { src: '/logos/canva.svg' },
-  close: { src: '/logos/close.svg' },
-  cloudflare: { src: '/logos/cloudflare.png' },
-  cloudinary: { src: '/logos/cloudinary.png' },
-  contentful: { src: '/logos/contentful.svg' },
-  datadog: { src: '/logos/datadog.svg' },
-  docusign: { src: '/logos/docusign.png' },
-  dropbox: { src: '/logos/dropbox.svg' },
-  egnyte: { src: '/logos/egnyte.svg' },
-  exa: { src: '/logos/exa.png' },
-  figma: { src: '/logos/figma.svg' },
-  fireflies: { src: '/logos/fireflies.svg' },
-  github: { src: '/logos/github.svg', darkInvert: true },
-  gmail: { src: '/logos/gmail.png' },
-  google_calendar: { src: '/logos/google_calendar.png' },
-  gitlab: { src: '/logos/gitlab.svg' },
-  grafana: { src: '/logos/grafana.svg' },
-  heroku: { src: '/logos/heroku.svg' },
-  huggingface: { src: '/logos/huggingface.svg' },
-  hubspot: { src: '/logos/hubspot.svg' },
-  indeed: { src: '/logos/indeed.svg' },
-  intercom: { src: '/logos/intercom.png' },
-  launchdarkly: { src: '/logos/launchdarkly.svg', darkInvert: true },
-  linear: { src: '/logos/linear.svg', darkInvert: true },
-  mercury: { src: '/logos/mercury.png', darkInvert: true },
-  mixpanel: { src: '/logos/mixpanel.png' },
-  monday: { src: '/logos/monday.svg' },
-  neon: { src: '/logos/neon.png' },
-  netlify: { src: '/logos/netlify.png' },
-  notion: { src: '/logos/notion.svg', darkInvert: true },
-  pagerduty: { src: '/logos/pagerduty.svg' },
-  paypal: { src: '/logos/paypal.svg' },
-  plaid: { src: '/logos/plaid.svg' },
-  planetscale: { src: '/logos/planetscale.svg', darkInvert: true },
-  posthog: { src: '/logos/posthog.svg' },
-  prisma: { src: '/logos/prisma.svg', darkInvert: true },
-  ramp: { src: '/logos/ramp.jpg' },
-  resend: { src: '/logos/resend.svg', darkInvert: true },
-  render: { src: '/logos/render.svg', darkInvert: true },
-  sanity: { src: '/logos/sanity.svg', darkInvert: true },
-  semgrep: { src: '/logos/semgrep.png' },
-  sentry: { src: '/logos/sentry.svg', darkInvert: true },
-  shopify: { src: '/logos/shopify.svg' },
-  slack: { src: '/logos/slack.svg' },
-  square: { src: '/logos/square.png', darkInvert: true },
-  stripe: { src: '/logos/stripe.svg' },
-  stytch: { src: '/logos/stytch.svg', darkInvert: true },
-  supabase: { src: '/logos/supabase.svg' },
-  tally: { src: '/logos/tally.svg' },
-  telnyx: { src: '/logos/telnyx.png' },
-  thoughtspot: { src: '/logos/thoughtspot.png' },
-  twilio: { src: '/logos/twilio.svg' },
-  vercel: { src: '/logos/vercel.svg', darkInvert: true },
-  webflow: { src: '/logos/webflow.svg' },
-  wix: { src: '/logos/wix.png', darkInvert: true },
-  zapier: { src: '/logos/zapier.svg' },
 }

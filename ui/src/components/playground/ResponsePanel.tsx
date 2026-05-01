@@ -253,7 +253,7 @@ function tokenizeJson(src: string): Token[] {
 
 // Groups: [comment] [quoted-str] [bool/null/~] [number] [key] [anchor/alias/tag] [doc-sep] [block-scalar] [colon] [fallback]
 const YAML_RE =
-  /(#[^\n]*)|("(?:\\.|[^"\\])*"|'[^']*')|(true|false|yes|no|on|off|null|~(?=[\s,\]\}\n]|$))|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|([\w][\w.-]*(?=\s*:(?:\s|$|\n)))|([&*!][\w.-]*)|(---|\.\.\.)|([|>](?=[ \t]*\n))|(:\s*|:\n)|(.)/g
+  /(#[^\n]*)|("(?:\\.|[^"\\])*"|'[^']*')|(true|false|yes|no|on|off|null|~(?=[\s,\]}\n]|$))|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|([\w][\w.-]*(?=\s*:(?:\s|$|\n)))|([&*!][\w.-]*)|(---|\.\.\.)|([|>](?=[ \t]*\n))|(:\s*|:\n)|(.)/g
 
 function tokenizeYaml(src: string): Token[] {
   const tokens: Token[] = []

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Search } from 'lucide-react'
 import type { BundledIntegration, InstalledIntegration } from '@/api/client'
-import { LOGOS } from '@/components/connections/IntegrationCard'
+import { LOGOS } from '@/components/connections/logos'
 
 interface IntegrationSelectorProps {
   installed: InstalledIntegration[]

@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { api, type ApprovalRequest, type BundledIntegration, type Tool } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
-import { LOGOS } from '@/components/connections/IntegrationCard'
+import { LOGOS } from '@/components/connections/logos'
 import { CodeInput } from '@/components/totp/CodeInput'
 import { isTotpChallengeError } from '@/lib/totpError'
 

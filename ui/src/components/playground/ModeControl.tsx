@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, ChevronDown, Loader2 } from 'lucide-react'
 import { TOOL_MODES } from '@/lib/toolModes'
@@ -54,6 +54,13 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
     setError(null)
   }
 
+  const closeFromEffect = useEffectEvent(() => {
+    if (saving) return
+    setOpen(false)
+    setPendingMode(null)
+    setError(null)
+  })
+
   async function savePending(totpCode?: string) {
     if (!pendingMode) return
     await api.toolSettings.update(integrationName, toolName, pendingMode, totpCode)
@@ -97,20 +104,20 @@ export function ModeControl({ mode, integrationName, toolName, onModeChange }: M
     function onPointerDown(e: PointerEvent) {
       const target = e.target as Node
       if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) return
-      handleClose()
+      closeFromEffect()
     }
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [open, saving])
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') handleClose()
+      if (e.key === 'Escape') closeFromEffect()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, saving])
+  }, [open])
 
   return (
     <>

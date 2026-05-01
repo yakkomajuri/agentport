@@ -31,7 +31,14 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState<'checkout' | 'portal' | null>(null)
   const [error, setError] = useState('')
-  const [banner, setBanner] = useState<string | null>(null)
+  const [checkoutResult] = useState(() => searchParams.get('checkout'))
+
+  const banner =
+    checkoutResult === 'success'
+      ? "You're on AgentPort Plus — thanks for subscribing!"
+      : checkoutResult === 'cancel'
+        ? 'Checkout canceled.'
+        : null
 
   useEffect(() => {
     api.billing
@@ -48,17 +55,11 @@ export default function BillingPage() {
   }, [navigate])
 
   useEffect(() => {
-    const checkout = searchParams.get('checkout')
-    if (checkout === 'success') {
-      setBanner("You're on AgentPort Plus — thanks for subscribing!")
-      searchParams.delete('checkout')
-      setSearchParams(searchParams, { replace: true })
-    } else if (checkout === 'cancel') {
-      setBanner('Checkout canceled.')
-      searchParams.delete('checkout')
-      setSearchParams(searchParams, { replace: true })
-    }
-  }, [searchParams, setSearchParams])
+    if (!checkoutResult || !searchParams.has('checkout')) return
+    const nextSearchParams = new URLSearchParams(searchParams)
+    nextSearchParams.delete('checkout')
+    setSearchParams(nextSearchParams, { replace: true })
+  }, [checkoutResult, searchParams, setSearchParams])
 
   async function startCheckout() {
     setPending('checkout')

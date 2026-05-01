@@ -10,7 +10,7 @@ import { LogCard } from '@/components/logs/LogCard'
 import { LogDetailPanel } from '@/components/logs/LogDetailPanel'
 import type { LogEntry } from '@/api/client'
 import { ConnectDialog } from '@/components/connections/ConnectDialog'
-import { LOGOS } from '@/components/connections/IntegrationCard'
+import { LOGOS } from '@/components/connections/logos'
 import { api, type Tool } from '@/api/client'
 import { TOOL_MODES } from '@/lib/toolModes'
 import { useIsMobile } from '@/lib/useMediaQuery'
@@ -57,25 +57,26 @@ export default function ConnectionDetailPage() {
   useEffect(() => {
     if (integrations.length === 0) fetchIntegrations()
     if (installed.length === 0) fetchInstalled()
-  }, [])
+  }, [fetchInstalled, fetchIntegrations, installed.length, integrations.length])
 
   const integration = integrations.find((i) => i.id === integrationId)
   const inst = installed.find((i) => i.integration_id === integrationId)
+  const installedIntegrationId = inst?.integration_id ?? null
 
   useEffect(() => {
-    if (inst) {
-      fetchForIntegration(inst.integration_id)
+    if (installedIntegrationId) {
+      fetchForIntegration(installedIntegrationId)
     } else {
       clear()
     }
     return () => clear()
-  }, [inst?.integration_id])
+  }, [clear, fetchForIntegration, installedIntegrationId])
 
   useEffect(() => {
-    if (activeTab === 'logs' && inst) {
-      fetchLogs({ integration: inst.integration_id })
+    if (activeTab === 'logs' && installedIntegrationId) {
+      fetchLogs({ integration: installedIntegrationId })
     }
-  }, [activeTab, inst?.integration_id])
+  }, [activeTab, fetchLogs, installedIntegrationId])
 
   // Reset tab when navigating to a different connection
   useEffect(() => {

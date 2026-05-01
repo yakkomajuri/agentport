@@ -135,20 +135,40 @@ function MetaLine({ label, value, mono }: { label: string; value: string; mono?:
 }
 
 export function LogDetailPanel({ entry, onClose }: { entry: LogEntry; onClose: () => void }) {
-  const [approval, setApproval] = useState<ApprovalRequest | null>(null)
-  const [loadingApproval, setLoadingApproval] = useState(false)
+  const approvalRequestId = entry.approval_request_id ?? null
+  const [approvalState, setApprovalState] = useState<{
+    requestId: string | null
+    approval: ApprovalRequest | null
+  }>({
+    requestId: null,
+    approval: null,
+  })
+  const approval =
+    approvalState.requestId === approvalRequestId ? approvalState.approval : null
+  const loadingApproval =
+    approvalRequestId !== null && approvalState.requestId !== approvalRequestId
 
   useEffect(() => {
-    if (!entry.approval_request_id) return
-    setLoadingApproval(true)
+    if (!approvalRequestId) return
+
+    let cancelled = false
     api.approvals
-      .get(entry.approval_request_id)
-      .then(setApproval)
-      .catch(() => {
-        /* not critical */
+      .get(approvalRequestId)
+      .then((nextApproval) => {
+        if (!cancelled) {
+          setApprovalState({ requestId: approvalRequestId, approval: nextApproval })
+        }
       })
-      .finally(() => setLoadingApproval(false))
-  }, [entry.approval_request_id])
+      .catch(() => {
+        if (!cancelled) {
+          setApprovalState({ requestId: approvalRequestId, approval: null })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [approvalRequestId])
 
   // Close on Escape
   useEffect(() => {

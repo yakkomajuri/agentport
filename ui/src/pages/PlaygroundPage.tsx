@@ -38,21 +38,22 @@ export default function PlaygroundPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const approvalRequestId =
     result?.status === 'approval_required' ? result.data.approval_request_id : null
+  const selectedIntegrationId = selectedIntegration?.integration_id ?? null
 
   useEffect(() => {
     if (installed.length === 0) fetchInstalled()
     if (integrations.length === 0) fetchIntegrations()
-  }, [])
+  }, [fetchInstalled, fetchIntegrations, installed.length, integrations.length])
 
   // Auto-select first integration once the list loads
   useEffect(() => {
     if (installed.length > 0 && !selectedIntegration) {
       setSelectedIntegration(installed[0])
     }
-  }, [installed])
+  }, [installed, selectedIntegration])
 
   useEffect(() => {
-    if (!selectedIntegration) {
+    if (!selectedIntegrationId) {
       setTools([])
       return
     }
@@ -64,14 +65,14 @@ export default function PlaygroundPage() {
     setResult(null)
     setDurationMs(null)
     api.tools
-      .listForIntegration(selectedIntegration.integration_id)
+      .listForIntegration(selectedIntegrationId)
       .then((fetched) => {
         setTools(fetched)
         if (fetched.length > 0) setSelectedTool(fetched[0])
       })
       .catch(() => setTools([]))
       .finally(() => setToolsLoading(false))
-  }, [selectedIntegration?.integration_id])
+  }, [selectedIntegrationId])
 
   useEffect(() => {
     if (!selectedTool) return
@@ -80,7 +81,7 @@ export default function PlaygroundPage() {
     setRawMode(false)
     setResult(null)
     setDurationMs(null)
-  }, [selectedTool?.name])
+  }, [selectedTool])
 
   // Auto-poll when awaiting approval
   useEffect(() => {

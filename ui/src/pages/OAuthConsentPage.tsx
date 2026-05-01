@@ -24,6 +24,7 @@ export default function OAuthConsentPage() {
   const navigate = useNavigate()
   const [acting, setActing] = useState(false)
   const [error, setError] = useState('')
+  const [nowSeconds] = useState(() => Date.now() / 1000)
 
   useEffect(() => {
     if (!sessionToken || !token) return
@@ -74,7 +75,7 @@ export default function OAuthConsentPage() {
         if (clientLabel && clientLabel !== '—') params.set('client', clientLabel)
         navigate(`/oauth/success?${params.toString()}`)
       } else {
-        window.location.href = redirect_url
+        window.location.assign(redirect_url)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Action failed')
@@ -84,7 +85,7 @@ export default function OAuthConsentPage() {
 
   const scopes = session?.scope ? session.scope.split(' ').filter(Boolean) : []
   const clientLabel = session?.client_name || session?.client_id || '—'
-  const isExpired = session && session.expires_at < Date.now() / 1000
+  const isExpired = session && session.expires_at < nowSeconds
 
   return (
     <div style={pageStyle}>
