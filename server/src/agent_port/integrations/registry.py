@@ -14,6 +14,7 @@ from agent_port.integrations.bundled.egnyte import EgnyteIntegration
 from agent_port.integrations.bundled.exa import ExaIntegration
 from agent_port.integrations.bundled.fireflies import FirefliesIntegration
 from agent_port.integrations.bundled.github import GitHubIntegration
+from agent_port.integrations.bundled.granola import GranolaIntegration
 from agent_port.integrations.bundled.gmail import GmailIntegration
 from agent_port.integrations.bundled.google_calendar import GoogleCalendarIntegration
 from agent_port.integrations.bundled.huggingface import HuggingFaceIntegration
@@ -67,6 +68,7 @@ _INTEGRATIONS: dict[str, Integration] = {
         ExaIntegration(),
         FirefliesIntegration(),
         GitHubIntegration(),
+        GranolaIntegration(),
         GmailIntegration(),
         GoogleCalendarIntegration(),
         HuggingFaceIntegration(),

@@ -204,6 +204,7 @@ export const LOGOS: Record<string, { src: string; darkInvert?: boolean }> = {
   fireflies: { src: '/logos/fireflies.svg' },
   github: { src: '/logos/github.svg', darkInvert: true },
   gmail: { src: '/logos/gmail.png' },
+  granola: { src: '/logos/granola.svg' },
   google_calendar: { src: '/logos/google_calendar.png' },
   gitlab: { src: '/logos/gitlab.svg' },
   grafana: { src: '/logos/grafana.svg' },
