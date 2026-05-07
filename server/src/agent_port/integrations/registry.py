@@ -14,9 +14,9 @@ from agent_port.integrations.bundled.egnyte import EgnyteIntegration
 from agent_port.integrations.bundled.exa import ExaIntegration
 from agent_port.integrations.bundled.fireflies import FirefliesIntegration
 from agent_port.integrations.bundled.github import GitHubIntegration
-from agent_port.integrations.bundled.granola import GranolaIntegration
 from agent_port.integrations.bundled.gmail import GmailIntegration
 from agent_port.integrations.bundled.google_calendar import GoogleCalendarIntegration
+from agent_port.integrations.bundled.granola import GranolaIntegration
 from agent_port.integrations.bundled.huggingface import HuggingFaceIntegration
 from agent_port.integrations.bundled.intercom import IntercomIntegration
 from agent_port.integrations.bundled.launchdarkly import LaunchDarklyIntegration
