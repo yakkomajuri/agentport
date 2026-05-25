@@ -51,7 +51,7 @@ async def install_integration(
     session: Session = Depends(get_session),
     agent_auth: AgentAuth = Depends(get_agent_auth),
 ) -> dict:
-    bundled = registry.get(body.integration_id)
+    bundled = registry.get(body.integration_id, org_id=agent_auth.org.id)
     if not bundled:
         raise HTTPException(
             status_code=404, detail=f"Integration '{body.integration_id}' not found"
@@ -78,7 +78,11 @@ async def install_integration(
         raise HTTPException(status_code=400, detail="Token required for token auth")
 
     valid_methods = {a.method for a in bundled.auth}
-    if body.auth_method not in valid_methods:
+    # auth_method="none" is valid only for integrations that declare no auth
+    # (e.g. user-added MCP URLs with no auth required). Bundled integrations
+    # always declare at least one method, so this never accepts "none" for them.
+    none_allowed = body.auth_method == "none" and not bundled.auth
+    if body.auth_method not in valid_methods and not none_allowed:
         raise HTTPException(
             status_code=400,
             detail=f"Auth method '{body.auth_method}' not supported. Options: {valid_methods}",
@@ -100,10 +104,10 @@ async def install_integration(
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Token validation failed: {e}")
 
-    # Token auth is connected the moment a token is provided (and validated above).
-    # OAuth auth is not connected until the OAuth callback succeeds and tokens are persisted.
-    # Any other auth method starts as disconnected.
-    connected = body.auth_method == "token" and bool(body.token)
+    # Token auth: connected once a token is provided + validated above.
+    # No-auth: connected immediately.
+    # OAuth: not connected until the OAuth callback persists tokens.
+    connected = (body.auth_method == "token" and bool(body.token)) or body.auth_method == "none"
 
     # Determine the connection URL based on integration type.
     if bundled.type == "remote_mcp":

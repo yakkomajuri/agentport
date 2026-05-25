@@ -359,7 +359,7 @@ async def _dispatch_and_log(
             oauth_state = refreshed
 
     # Dispatch to the right client based on integration type.
-    bundled = integration_registry.get(installed.integration_id)
+    bundled = integration_registry.get(installed.integration_id, org_id=installed.org_id)
     is_api = isinstance(bundled, CustomIntegration)
 
     result: dict = {}

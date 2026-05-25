@@ -93,6 +93,27 @@ export interface BundledIntegration {
   tool_categories?: Record<string, string>
 }
 
+export interface CustomMcpIntegration {
+  id: string
+  integration_id: string
+  name: string
+  url: string
+  description: string | null
+  auth_method: 'none' | 'token' | 'oauth'
+  token_header: string
+  token_format: string
+  created_at: string
+}
+
+export interface CreateCustomMcpRequest {
+  name: string
+  url: string
+  description?: string
+  auth_method: 'none' | 'token' | 'oauth'
+  token_header?: string
+  token_format?: string
+}
+
 export interface InstalledIntegration {
   id: string
   org_id: string
@@ -399,6 +420,20 @@ export const api = {
   integrations: {
     list() {
       return request<BundledIntegration[]>('/integrations')
+    },
+  },
+  customMcp: {
+    list() {
+      return request<CustomMcpIntegration[]>('/integrations/custom')
+    },
+    create(data: CreateCustomMcpRequest) {
+      return request<CustomMcpIntegration>('/integrations/custom', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    },
+    remove(id: string) {
+      return request<void>(`/integrations/custom/${encodeURIComponent(id)}`, { method: 'DELETE' })
     },
   },
   installed: {
