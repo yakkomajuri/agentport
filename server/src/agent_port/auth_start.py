@@ -171,7 +171,7 @@ async def start_oauth_for_installed(
     integration_id = installed.integration_id
 
     # Check for pre-configured OAuth (e.g. Google) — skip MCP discovery
-    bundled = registry.get(installed.integration_id)
+    bundled = registry.get(installed.integration_id, org_id=installed.org_id)
     if bundled:
         oauth_auth = next((a for a in bundled.auth if a.method == "oauth"), None)
         if oauth_auth and oauth_auth.provider:

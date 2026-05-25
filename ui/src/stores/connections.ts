@@ -1,23 +1,34 @@
 import { create } from 'zustand'
-import { api, type BundledIntegration, type InstalledIntegration } from '@/api/client'
+import {
+  api,
+  type BundledIntegration,
+  type CreateCustomMcpRequest,
+  type CustomMcpIntegration,
+  type InstalledIntegration,
+} from '@/api/client'
 
 interface ConnectionsState {
   integrations: BundledIntegration[]
   installed: InstalledIntegration[]
+  customMcp: CustomMcpIntegration[]
   loading: boolean
   fetchIntegrations: () => Promise<void>
   fetchInstalled: () => Promise<void>
+  fetchCustomMcp: () => Promise<void>
   install: (data: {
     integration_id: string
     auth_method: string
     token?: string
   }) => Promise<InstalledIntegration>
   remove: (integrationId: string) => Promise<void>
+  createCustomMcp: (data: CreateCustomMcpRequest) => Promise<CustomMcpIntegration>
+  removeCustomMcp: (id: string) => Promise<void>
 }
 
 export const useConnectionsStore = create<ConnectionsState>((set, get) => ({
   integrations: [],
   installed: [],
+  customMcp: [],
   loading: false,
 
   fetchIntegrations: async () => {
@@ -35,6 +46,11 @@ export const useConnectionsStore = create<ConnectionsState>((set, get) => ({
     }
   },
 
+  fetchCustomMcp: async () => {
+    const customMcp = await api.customMcp.list()
+    set({ customMcp })
+  },
+
   install: async (data) => {
     const result = await api.installed.create(data)
     await get().fetchInstalled()
@@ -44,5 +60,18 @@ export const useConnectionsStore = create<ConnectionsState>((set, get) => ({
   remove: async (integrationId) => {
     await api.installed.remove(integrationId)
     await get().fetchInstalled()
+  },
+
+  createCustomMcp: async (data) => {
+    const result = await api.customMcp.create(data)
+    // Refresh both: the catalog now includes the new integration, and our
+    // local custom list needs the row for delete actions.
+    await Promise.all([get().fetchCustomMcp(), get().fetchIntegrations()])
+    return result
+  },
+
+  removeCustomMcp: async (id) => {
+    await api.customMcp.remove(id)
+    await Promise.all([get().fetchCustomMcp(), get().fetchIntegrations()])
   },
 }))

@@ -46,10 +46,15 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
   const location = useLocation()
   const navigate = useNavigate()
   const install = useConnectionsStore((s) => s.install)
-  const defaultMethod =
-    integration?.auth.find((a) => a.method === 'oauth' || a.method === 'token')?.method ?? 'oauth'
-  const [authMethod, setAuthMethod] = useState<'oauth' | 'token'>(
-    defaultMethod as 'oauth' | 'token',
+  // For integrations that declare no auth (e.g. user-added MCP URLs with no
+  // credentials), the connect flow is a single submit — no token, no OAuth.
+  const noAuthRequired = (integration?.auth.length ?? 0) === 0
+  const defaultMethod = noAuthRequired
+    ? 'none'
+    : (integration?.auth.find((a) => a.method === 'oauth' || a.method === 'token')?.method ??
+      'oauth')
+  const [authMethod, setAuthMethod] = useState<'oauth' | 'token' | 'none'>(
+    defaultMethod as 'oauth' | 'token' | 'none',
   )
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
@@ -84,6 +89,12 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
           auth_method: authMethod,
           token: authMethod === 'token' ? token : undefined,
         })
+      }
+
+      if (authMethod === 'none') {
+        onClose()
+        navigateToIntegrationDetail(integration.id)
+        return
       }
 
       if (authMethod === 'oauth') {
@@ -135,6 +146,7 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
 
   const supportsOAuth = integration.auth.some((a) => a.method === 'oauth')
   const supportsToken = integration.auth.some((a) => a.method === 'token')
+  const showMethodPicker = supportsOAuth || supportsToken
   const tokenAuth = integration.auth.find((a) => a.method === 'token')
   const logo = LOGOS[integration.id]
 
@@ -225,7 +237,13 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
             </div>
           )}
 
-          {(supportsOAuth || supportsToken) && (
+          {!showMethodPicker && (
+            <div style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+              This integration is configured without authentication. Click Connect to enable it.
+            </div>
+          )}
+
+          {showMethodPicker && (
             <div>
               <Label style={labelStyle}>Auth method</Label>
               <div style={{ display: 'flex', gap: 8 }}>
