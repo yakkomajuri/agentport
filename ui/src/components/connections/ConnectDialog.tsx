@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
 import {
@@ -42,24 +42,33 @@ interface Props {
   onClose: () => void
 }
 
+type ConnectAuthMethod = 'oauth' | 'token' | 'none'
+
+function getDefaultAuthMethod(integration: BundledIntegration | null): ConnectAuthMethod {
+  if (!integration) return 'oauth'
+  if (integration.auth.length === 0) return 'none'
+  return (
+    integration.auth.find((a) => a.method === 'oauth' || a.method === 'token')?.method ?? 'oauth'
+  )
+}
+
 export function ConnectDialog({ integration, open, reauth = false, onClose }: Props) {
   const location = useLocation()
   const navigate = useNavigate()
   const install = useConnectionsStore((s) => s.install)
-  // For integrations that declare no auth (e.g. user-added MCP URLs with no
-  // credentials), the connect flow is a single submit — no token, no OAuth.
-  const noAuthRequired = (integration?.auth.length ?? 0) === 0
-  const defaultMethod = noAuthRequired
-    ? 'none'
-    : (integration?.auth.find((a) => a.method === 'oauth' || a.method === 'token')?.method ??
-      'oauth')
-  const [authMethod, setAuthMethod] = useState<'oauth' | 'token' | 'none'>(
-    defaultMethod as 'oauth' | 'token' | 'none',
-  )
+  const [authMethod, setAuthMethod] = useState<ConnectAuthMethod>(getDefaultAuthMethod(integration))
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [limitError, setLimitError] = useState<LimitError | null>(null)
+
+  useEffect(() => {
+    if (!open || !integration) return
+    setAuthMethod(getDefaultAuthMethod(integration))
+    setToken('')
+    setError('')
+    setLimitError(null)
+  }, [open, integration])
 
   function navigateToIntegrationDetail(integrationId: string) {
     const detailPath = `/integrations/${encodeURIComponent(integrationId)}`
