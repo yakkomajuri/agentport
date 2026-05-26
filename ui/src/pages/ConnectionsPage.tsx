@@ -1,21 +1,25 @@
 import { useEffect, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { useConnectionsStore } from '@/stores/connections'
 import { IntegrationCard } from '@/components/connections/IntegrationCard'
 import { ConnectDialog } from '@/components/connections/ConnectDialog'
+import { AddCustomMcpDialog } from '@/components/connections/AddCustomMcpDialog'
 import { useIsMobile } from '@/lib/useMediaQuery'
 import type { BundledIntegration } from '@/api/client'
 
 export default function ConnectionsPage() {
-  const { integrations, installed, fetchIntegrations, fetchInstalled } = useConnectionsStore()
+  const { integrations, installed, fetchIntegrations, fetchInstalled, fetchCustomMcp } =
+    useConnectionsStore()
   const [search, setSearch] = useState('')
   const [connectTarget, setConnectTarget] = useState<BundledIntegration | null>(null)
+  const [addCustomOpen, setAddCustomOpen] = useState(false)
   const isMobile = useIsMobile()
   const gutter = isMobile ? 14 : 20
 
   useEffect(() => {
     fetchIntegrations()
     fetchInstalled()
+    fetchCustomMcp()
   }, [])
 
   const connectedInstalledIds = new Set(
@@ -45,6 +49,28 @@ export default function ConnectionsPage() {
         }}
       >
         <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>Integrations</span>
+        <button
+          type="button"
+          onClick={() => setAddCustomOpen(true)}
+          style={{
+            marginLeft: 'auto',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 10px',
+            borderRadius: 6,
+            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            color: 'var(--text)',
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          <Plus size={13} />
+          Add custom MCP
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -190,6 +216,22 @@ export default function ConnectionsPage() {
         integration={connectTarget}
         open={connectTarget !== null}
         onClose={() => setConnectTarget(null)}
+      />
+
+      <AddCustomMcpDialog
+        open={addCustomOpen}
+        onClose={() => setAddCustomOpen(false)}
+        onCreated={(created) => {
+          // Surface the new integration immediately by opening the Connect
+          // dialog. After the store refreshes, the card will also appear in
+          // the Browse grid for future installs.
+          fetchIntegrations().then(() => {
+            const fresh = useConnectionsStore
+              .getState()
+              .integrations.find((i) => i.id === created.integration_id)
+            if (fresh) setConnectTarget(fresh)
+          })
+        }}
       />
     </>
   )

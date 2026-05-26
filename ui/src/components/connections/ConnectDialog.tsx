@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
 import {
@@ -42,19 +42,33 @@ interface Props {
   onClose: () => void
 }
 
+type ConnectAuthMethod = 'oauth' | 'token' | 'none'
+
+function getDefaultAuthMethod(integration: BundledIntegration | null): ConnectAuthMethod {
+  if (!integration) return 'oauth'
+  if (integration.auth.length === 0) return 'none'
+  return (
+    integration.auth.find((a) => a.method === 'oauth' || a.method === 'token')?.method ?? 'oauth'
+  )
+}
+
 export function ConnectDialog({ integration, open, reauth = false, onClose }: Props) {
   const location = useLocation()
   const navigate = useNavigate()
   const install = useConnectionsStore((s) => s.install)
-  const defaultMethod =
-    integration?.auth.find((a) => a.method === 'oauth' || a.method === 'token')?.method ?? 'oauth'
-  const [authMethod, setAuthMethod] = useState<'oauth' | 'token'>(
-    defaultMethod as 'oauth' | 'token',
-  )
+  const [authMethod, setAuthMethod] = useState<ConnectAuthMethod>(getDefaultAuthMethod(integration))
   const [token, setToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [limitError, setLimitError] = useState<LimitError | null>(null)
+
+  useEffect(() => {
+    if (!open || !integration) return
+    setAuthMethod(getDefaultAuthMethod(integration))
+    setToken('')
+    setError('')
+    setLimitError(null)
+  }, [open, integration])
 
   function navigateToIntegrationDetail(integrationId: string) {
     const detailPath = `/integrations/${encodeURIComponent(integrationId)}`
@@ -84,6 +98,12 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
           auth_method: authMethod,
           token: authMethod === 'token' ? token : undefined,
         })
+      }
+
+      if (authMethod === 'none') {
+        onClose()
+        navigateToIntegrationDetail(integration.id)
+        return
       }
 
       if (authMethod === 'oauth') {
@@ -135,6 +155,7 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
 
   const supportsOAuth = integration.auth.some((a) => a.method === 'oauth')
   const supportsToken = integration.auth.some((a) => a.method === 'token')
+  const showMethodPicker = supportsOAuth || supportsToken
   const tokenAuth = integration.auth.find((a) => a.method === 'token')
   const logo = LOGOS[integration.id]
 
@@ -225,7 +246,13 @@ export function ConnectDialog({ integration, open, reauth = false, onClose }: Pr
             </div>
           )}
 
-          {(supportsOAuth || supportsToken) && (
+          {!showMethodPicker && (
+            <div style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+              This integration is configured without authentication. Click Connect to enable it.
+            </div>
+          )}
+
+          {showMethodPicker && (
             <div>
               <Label style={labelStyle}>Auth method</Label>
               <div style={{ display: 'flex', gap: 8 }}>

@@ -44,7 +44,9 @@ async def _refresh_all() -> None:
                     continue
 
                 # API integrations define tools statically — no remote call.
-                bundled = integration_registry.get(installed.integration_id)
+                bundled = integration_registry.get(
+                    installed.integration_id, org_id=installed.org_id
+                )
                 is_api = isinstance(bundled, CustomIntegration)
 
                 if is_api:
@@ -128,7 +130,7 @@ async def refresh_one(org_id, integration_id: str) -> None:
         session.add(installed)
         session.commit()
 
-        bundled = integration_registry.get(installed.integration_id)
+        bundled = integration_registry.get(installed.integration_id, org_id=org_id)
         is_api = isinstance(bundled, CustomIntegration)
         oauth_state = None
 

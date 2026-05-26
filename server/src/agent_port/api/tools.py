@@ -177,7 +177,7 @@ async def _get_tools_cached(
             oauth_state = refreshed
 
     # API integrations define tools statically - no remote call needed.
-    bundled = integration_registry.get(integration_id)
+    bundled = integration_registry.get(integration_id, org_id=installed.org_id)
     is_api = isinstance(bundled, CustomIntegration)
 
     tools: list[dict] | None = None
@@ -257,7 +257,7 @@ def _annotate_tools(
     execution_modes = _get_execution_modes(session, org_id, integration_id)
     categories: dict[str, str] = {}
     if integration_id:
-        bundled = integration_registry.get(integration_id)
+        bundled = integration_registry.get(integration_id, org_id=org_id)
         if bundled:
             categories = bundled.tool_categories
     for tool in tools:
@@ -477,7 +477,7 @@ async def call_tool(
             oauth_state = refreshed
 
     # Dispatch to the right client based on integration type.
-    bundled_int = integration_registry.get(installed.integration_id)
+    bundled_int = integration_registry.get(installed.integration_id, org_id=installed.org_id)
     is_api = isinstance(bundled_int, CustomIntegration)
 
     start = time.time()

@@ -29,8 +29,16 @@ export default function ConnectionDetailPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
   const sidePad = isMobile ? 14 : 28
-  const { integrations, installed, fetchIntegrations, fetchInstalled, remove } =
-    useConnectionsStore()
+  const {
+    integrations,
+    installed,
+    customMcp,
+    fetchIntegrations,
+    fetchInstalled,
+    fetchCustomMcp,
+    remove,
+    removeCustomMcp,
+  } = useConnectionsStore()
   const {
     tools,
     loading: toolsLoading,
@@ -57,10 +65,13 @@ export default function ConnectionDetailPage() {
   useEffect(() => {
     if (integrations.length === 0) fetchIntegrations()
     if (installed.length === 0) fetchInstalled()
+    if (customMcp.length === 0) fetchCustomMcp()
   }, [])
 
   const integration = integrations.find((i) => i.id === integrationId)
   const inst = installed.find((i) => i.integration_id === integrationId)
+  const customDef = customMcp.find((c) => c.integration_id === integrationId)
+  const isCustom = !!customDef
 
   useEffect(() => {
     if (inst) {
@@ -229,6 +240,19 @@ export default function ConnectionDetailPage() {
     navigate('/integrations')
   }
 
+  async function handleDeleteCustom() {
+    if (!customDef) return
+    if (
+      !window.confirm(
+        `Delete the custom integration "${customDef.name}"? This removes the definition. ` +
+          'It cannot be undone.',
+      )
+    )
+      return
+    await removeCustomMcp(customDef.id)
+    navigate('/integrations')
+  }
+
   return (
     <>
       {/* FilterBar */}
@@ -243,9 +267,29 @@ export default function ConnectionDetailPage() {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
           }}
         >
           {integration.name}
+          {isCustom && (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                padding: '2px 6px',
+                borderRadius: 4,
+                border: '1px solid var(--border)',
+                background: 'var(--surface)',
+                color: 'var(--text-dim)',
+              }}
+            >
+              Custom
+            </span>
+          )}
         </span>
         <div
           style={{
@@ -273,9 +317,16 @@ export default function ConnectionDetailPage() {
               </Button>
             </>
           ) : (
-            <Button size="sm" onClick={() => setConnectOpen(true)}>
-              Connect
-            </Button>
+            <>
+              <Button size="sm" onClick={() => setConnectOpen(true)}>
+                Connect
+              </Button>
+              {isCustom && (
+                <Button variant="destructive" size="sm" onClick={handleDeleteCustom}>
+                  Delete
+                </Button>
+              )}
+            </>
           )}
         </div>
       </FilterBar>

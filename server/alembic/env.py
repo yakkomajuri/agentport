@@ -5,6 +5,7 @@ from sqlmodel import SQLModel
 
 from agent_port.config import settings
 from agent_port.models.api_key import ApiKey  # noqa: F401
+from agent_port.models.custom_mcp_integration import CustomMcpIntegration  # noqa: F401
 from agent_port.models.google_login_state import GoogleLoginState  # noqa: F401
 from agent_port.models.instance_settings import InstanceSettings  # noqa: F401
 from agent_port.models.integration import InstalledIntegration  # noqa: F401

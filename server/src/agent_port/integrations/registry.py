@@ -47,7 +47,12 @@ from agent_port.integrations.bundled.vercel import VercelIntegration
 from agent_port.integrations.bundled.webflow import WebflowIntegration
 from agent_port.integrations.bundled.wix import WixIntegration
 from agent_port.integrations.bundled.zapier import ZapierIntegration
-from agent_port.integrations.types import Integration
+from agent_port.integrations.types import (
+    Integration,
+    OAuthAuth,
+    RemoteMcpIntegration,
+    TokenAuth,
+)
 
 _INTEGRATIONS: dict[str, Integration] = {
     i.id: i
@@ -105,9 +110,81 @@ _INTEGRATIONS: dict[str, Integration] = {
 }
 
 
-def get(integration_id: str) -> Integration | None:
-    return _INTEGRATIONS.get(integration_id)
+CUSTOM_PREFIX = "custom_"
 
 
-def list_all() -> list[Integration]:
-    return list(_INTEGRATIONS.values())
+def _custom_row_to_integration(row) -> RemoteMcpIntegration:
+    from agent_port.integrations.types import AuthMethod
+
+    auth: list[AuthMethod] = []
+    if row.auth_method == "token":
+        auth.append(
+            TokenAuth(
+                method="token",
+                label="API token",
+                header=row.token_header,
+                format=row.token_format,
+            )
+        )
+    elif row.auth_method == "oauth":
+        # No provider set → install will fall through to MCP discovery + DCR
+        # against the user's URL.
+        auth.append(OAuthAuth(method="oauth"))
+
+    return RemoteMcpIntegration(
+        id=row.integration_id,
+        name=row.name,
+        description=row.description,
+        url=row.url,
+        auth=auth,
+    )
+
+
+def _load_custom_row(integration_id: str, org_id) -> RemoteMcpIntegration | None:
+    from sqlmodel import Session, select
+
+    from agent_port.db import engine
+    from agent_port.models.custom_mcp_integration import CustomMcpIntegration
+
+    with Session(engine) as session:
+        row = session.exec(  # noqa: S608
+            select(CustomMcpIntegration)
+            .where(CustomMcpIntegration.org_id == org_id)
+            .where(CustomMcpIntegration.integration_id == integration_id)
+        ).first()
+        if not row:
+            return None
+        return _custom_row_to_integration(row)
+
+
+def _load_custom_rows_for_org(org_id) -> list[RemoteMcpIntegration]:
+    from sqlmodel import Session, select
+
+    from agent_port.db import engine
+    from agent_port.models.custom_mcp_integration import CustomMcpIntegration
+
+    with Session(engine) as session:
+        rows = session.exec(  # noqa: S608
+            select(CustomMcpIntegration).where(CustomMcpIntegration.org_id == org_id)
+        ).all()
+        return [_custom_row_to_integration(r) for r in rows]
+
+
+def get(integration_id: str, org_id=None) -> Integration | None:
+    """Look up an integration by id.
+
+    Bundled integrations are always available. Custom (user-defined) integrations
+    require an org_id; without it, ids beginning with custom_ return None.
+    """
+    if integration_id in _INTEGRATIONS:
+        return _INTEGRATIONS[integration_id]
+    if org_id is not None and integration_id.startswith(CUSTOM_PREFIX):
+        return _load_custom_row(integration_id, org_id)
+    return None
+
+
+def list_all(org_id=None) -> list[Integration]:
+    bundled = list(_INTEGRATIONS.values())
+    if org_id is None:
+        return bundled
+    return bundled + _load_custom_rows_for_org(org_id)

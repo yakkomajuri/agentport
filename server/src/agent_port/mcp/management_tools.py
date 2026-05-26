@@ -352,10 +352,10 @@ def _load_policy_map_for_integration(org_id, integration_id: str) -> dict[str, s
     return {s.tool_name: s.mode for s in settings}
 
 
-async def _handle_list_available(args: dict) -> list[types.TextContent]:
+async def _handle_list_available(args: dict, org_id) -> list[types.TextContent]:
     filter_type = args.get("type")
     query = (args.get("query") or "").strip()
-    all_integrations = integration_registry.list_all()
+    all_integrations = integration_registry.list_all(org_id=org_id)
     if filter_type:
         all_integrations = [i for i in all_integrations if i.type == filter_type]
     if query:
@@ -365,9 +365,9 @@ async def _handle_list_available(args: dict) -> list[types.TextContent]:
     return _text([_serialize_integration(i) for i in all_integrations])
 
 
-async def _handle_get_integration(args: dict) -> list[types.TextContent]:
+async def _handle_get_integration(args: dict, org_id) -> list[types.TextContent]:
     integration_id = args.get("integration_id", "")
-    integration = integration_registry.get(integration_id)
+    integration = integration_registry.get(integration_id, org_id=org_id)
     if not integration:
         return _text(f"Integration '{integration_id}' not found in catalog.")
     return _text(_serialize_integration(integration))
@@ -386,7 +386,7 @@ async def _handle_install(args: dict, org_id) -> list[types.TextContent]:
     auth_method = args.get("auth_method", "")
     token = args.get("token")
 
-    bundled = integration_registry.get(integration_id)
+    bundled = integration_registry.get(integration_id, org_id=org_id)
     if not bundled:
         return _text(f"Integration '{integration_id}' not found in catalog.")
 
@@ -823,8 +823,8 @@ async def dispatch(name: str, arguments: dict, auth) -> list[types.TextContent]:
     org_id = auth.org.id
 
     handlers = {
-        "agentport__list_available_integrations": lambda: _handle_list_available(arguments),
-        "agentport__get_integration": lambda: _handle_get_integration(arguments),
+        "agentport__list_available_integrations": lambda: _handle_list_available(arguments, org_id),
+        "agentport__get_integration": lambda: _handle_get_integration(arguments, org_id),
         "agentport__list_installed_integrations": lambda: _handle_list_installed(org_id),
         "agentport__install_integration": lambda: _handle_install(arguments, org_id),
         "agentport__uninstall_integration": lambda: _handle_uninstall(arguments, org_id),
