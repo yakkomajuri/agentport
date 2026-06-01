@@ -6,16 +6,18 @@ tools, returning results in the same format as the MCP client.
 
 import json
 import re
+import time
 from urllib.parse import quote
 
 import httpx
 from sqlmodel import Session
 
 from agent_port.db import engine
-from agent_port.integrations.types import ApiTool, CustomIntegration, CustomTool, Param
+from agent_port.integrations.types import ApiTool, CustomIntegration, CustomTool, Param, TokenAuth
 from agent_port.models.integration import InstalledIntegration
 from agent_port.models.oauth import OAuthState
 from agent_port.secrets.records import get_secret_value
+from agent_port.token_auth import build_token_auth_headers
 
 # ---------------------------------------------------------------------------
 # Auth helpers
@@ -23,13 +25,18 @@ from agent_port.secrets.records import get_secret_value
 
 
 def _auth_headers(
-    installed: InstalledIntegration, oauth_state: OAuthState | None = None
+    installed: InstalledIntegration,
+    oauth_state: OAuthState | None = None,
+    integration: CustomIntegration | None = None,
 ) -> dict[str, str]:
     if installed.auth_method == "token":
         with Session(engine) as session:
             token = get_secret_value(session, installed.token_secret_id)
         if token:
-            return {"Authorization": f"Bearer {token}"}
+            token_auth = _token_auth(integration)
+            if token_auth:
+                return build_token_auth_headers(token_auth.header, token_auth.format, token)
+            return build_token_auth_headers("Authorization", "Bearer {token}", token)
 
     if installed.auth_method == "oauth" and oauth_state:
         with Session(engine) as session:
@@ -38,6 +45,15 @@ def _auth_headers(
             return {"Authorization": f"Bearer {access_token}"}
 
     return {}
+
+
+def _token_auth(integration: CustomIntegration | None) -> TokenAuth | None:
+    if integration is None:
+        return None
+    for auth in integration.auth:
+        if isinstance(auth, TokenAuth):
+            return auth
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +122,133 @@ def _build_body(tool_def: ApiTool, args: dict) -> dict | None:
     return body if body else None
 
 
+async def _read_response_body(
+    response: httpx.Response, max_response_bytes: int | None = None
+) -> tuple[bytes, bool]:
+    if max_response_bytes is None:
+        return await response.aread(), False
+
+    chunks: list[bytes] = []
+    total = 0
+    truncated = False
+    async for chunk in response.aiter_bytes():
+        if total + len(chunk) > max_response_bytes:
+            keep = max_response_bytes - total
+            if keep > 0:
+                chunks.append(chunk[:keep])
+            truncated = True
+            break
+        chunks.append(chunk)
+        total += len(chunk)
+    return b"".join(chunks), truncated
+
+
+def _decode_response_body(response: httpx.Response, body: bytes) -> str:
+    if not body:
+        return ""
+    encoding = response.encoding or "utf-8"
+    return body.decode(encoding, errors="replace")
+
+
+def _result_from_response(
+    response: httpx.Response,
+    body: bytes,
+    duration_ms: int,
+    *,
+    truncated: bool,
+) -> dict:
+    text = _decode_response_body(response, body)
+    if truncated:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "API response exceeded the maximum allowed response size.",
+                }
+            ],
+            "isError": True,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+        }
+
+    if response.status_code >= 400:
+        error_text = text
+        try:
+            error_text = json.dumps(json.loads(text))
+        except Exception:
+            pass
+        return {
+            "content": [
+                {"type": "text", "text": f"API error ({response.status_code}): {error_text}"}
+            ],
+            "isError": True,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+        }
+
+    try:
+        result = json.loads(text)
+        content_text = json.dumps(result, indent=2)
+    except Exception:
+        content_text = text or "(empty response)"
+
+    return {
+        "content": [{"type": "text", "text": content_text}],
+        "isError": False,
+        "status_code": response.status_code,
+        "duration_ms": duration_ms,
+    }
+
+
+async def dispatch_api_tool(
+    *,
+    base_url: str,
+    tool_def: ApiTool,
+    args: dict,
+    headers: dict[str, str],
+    timeout: float | httpx.Timeout = 30.0,
+    follow_redirects: bool = False,
+    max_request_body_bytes: int | None = None,
+    max_response_bytes: int | None = None,
+) -> dict:
+    """Execute a declarative ApiTool against an HTTP API."""
+    url = _build_url(base_url, tool_def.path, args)
+    query = _build_query(tool_def, args)
+
+    body: dict | None = None
+    if tool_def.method.upper() in ("POST", "PUT", "PATCH"):
+        body = _build_body(tool_def, args)
+
+    if body is not None and max_request_body_bytes is not None:
+        body_bytes = json.dumps(body, separators=(",", ":")).encode()
+        if len(body_bytes) > max_request_body_bytes:
+            return {
+                "content": [{"type": "text", "text": "API request body is too large."}],
+                "isError": True,
+                "status_code": None,
+                "duration_ms": 0,
+            }
+
+    start = time.perf_counter()
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=follow_redirects) as client:
+        async with client.stream(
+            method=tool_def.method.upper(),
+            url=url,
+            params=query or None,
+            json=body,
+            headers=headers,
+        ) as response:
+            body_bytes, truncated = await _read_response_body(response, max_response_bytes)
+
+    duration_ms = int((time.perf_counter() - start) * 1000)
+    return _result_from_response(
+        response,
+        body_bytes,
+        duration_ms,
+        truncated=truncated,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public API — mirrors mcp/client.py interface
 # ---------------------------------------------------------------------------
@@ -136,53 +279,22 @@ async def call_tool(
     tool_def: ApiTool | CustomTool,
     args: dict,
     oauth_state: OAuthState | None = None,
+    integration: CustomIntegration | None = None,
+    auth_headers: dict[str, str] | None = None,
 ) -> dict:
     """Execute a tool call and return an MCP-compatible result dict."""
-    headers = _auth_headers(installed, oauth_state)
+    headers = (
+        auth_headers
+        if auth_headers is not None
+        else _auth_headers(installed, oauth_state, integration)
+    )
 
     if isinstance(tool_def, CustomTool):
         return await tool_def.run(args, headers)
 
-    # ApiTool: declarative HTTP dispatch
-    url = _build_url(installed.url, tool_def.path, args)
-    query = _build_query(tool_def, args)
-
-    body: dict | None = None
-    if tool_def.method.upper() in ("POST", "PUT", "PATCH"):
-        body = _build_body(tool_def, args)
-
-    async with httpx.AsyncClient() as client:
-        response = await client.request(
-            method=tool_def.method.upper(),
-            url=url,
-            params=query or None,
-            json=body,
-            headers=headers,
-            timeout=30.0,
-        )
-
-    if response.status_code >= 400:
-        error_text = response.text
-        try:
-            error_json = response.json()
-            error_text = json.dumps(error_json)
-        except Exception:
-            pass
-        return {
-            "content": [
-                {"type": "text", "text": f"API error ({response.status_code}): {error_text}"}
-            ],
-            "isError": True,
-        }
-
-    try:
-        result = response.json()
-        return {
-            "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
-            "isError": False,
-        }
-    except Exception:
-        return {
-            "content": [{"type": "text", "text": response.text or "(empty response)"}],
-            "isError": False,
-        }
+    return await dispatch_api_tool(
+        base_url=installed.url,
+        tool_def=tool_def,
+        args=args,
+        headers=headers,
+    )

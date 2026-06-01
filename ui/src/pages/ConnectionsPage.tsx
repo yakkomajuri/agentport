@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import { useConnectionsStore } from '@/stores/connections'
 import { IntegrationCard } from '@/components/connections/IntegrationCard'
@@ -10,6 +11,8 @@ import type { BundledIntegration } from '@/api/client'
 export default function ConnectionsPage() {
   const { integrations, installed, fetchIntegrations, fetchInstalled, fetchCustomMcp } =
     useConnectionsStore()
+  const fetchCustomApi = useConnectionsStore((s) => s.fetchCustomApi)
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [connectTarget, setConnectTarget] = useState<BundledIntegration | null>(null)
   const [addCustomOpen, setAddCustomOpen] = useState(false)
@@ -20,6 +23,7 @@ export default function ConnectionsPage() {
     fetchIntegrations()
     fetchInstalled()
     fetchCustomMcp()
+    fetchCustomApi()
   }, [])
 
   const connectedInstalledIds = new Set(
@@ -69,7 +73,29 @@ export default function ConnectionsPage() {
           }}
         >
           <Plus size={13} />
-          Add custom MCP
+          {isMobile ? 'MCP' : 'Add custom MCP'}
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/integrations/custom-api/new')}
+          style={{
+            marginLeft: 8,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 10px',
+            borderRadius: 6,
+            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            color: 'var(--text)',
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          <Plus size={13} />
+          {isMobile ? 'API' : 'Add custom API'}
         </button>
       </div>
 

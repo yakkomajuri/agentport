@@ -19,7 +19,7 @@ import { TotpCodeDialog } from '@/components/totp/TotpCodeDialog'
 
 const TYPE_LABELS: Record<string, string> = {
   remote_mcp: 'Remote MCP',
-  api: 'REST API',
+  custom: 'REST API',
 }
 
 type ToolWithMode = Tool & { execution_mode?: string }
@@ -33,11 +33,14 @@ export default function ConnectionDetailPage() {
     integrations,
     installed,
     customMcp,
+    customApi,
     fetchIntegrations,
     fetchInstalled,
     fetchCustomMcp,
+    fetchCustomApi,
     remove,
     removeCustomMcp,
+    removeCustomApi,
   } = useConnectionsStore()
   const {
     tools,
@@ -66,12 +69,14 @@ export default function ConnectionDetailPage() {
     if (integrations.length === 0) fetchIntegrations()
     if (installed.length === 0) fetchInstalled()
     if (customMcp.length === 0) fetchCustomMcp()
+    if (customApi.length === 0) fetchCustomApi()
   }, [])
 
   const integration = integrations.find((i) => i.id === integrationId)
   const inst = installed.find((i) => i.integration_id === integrationId)
-  const customDef = customMcp.find((c) => c.integration_id === integrationId)
-  const isCustom = !!customDef
+  const customMcpDef = customMcp.find((c) => c.integration_id === integrationId)
+  const customApiDef = customApi.find((c) => c.integration_id === integrationId)
+  const isCustom = !!customMcpDef || !!customApiDef
 
   useEffect(() => {
     if (inst) {
@@ -241,15 +246,28 @@ export default function ConnectionDetailPage() {
   }
 
   async function handleDeleteCustom() {
-    if (!customDef) return
+    if (!customMcpDef) return
     if (
       !window.confirm(
-        `Delete the custom integration "${customDef.name}"? This removes the definition. ` +
+        `Delete the custom integration "${customMcpDef.name}"? This removes the definition. ` +
           'It cannot be undone.',
       )
     )
       return
-    await removeCustomMcp(customDef.id)
+    await removeCustomMcp(customMcpDef.id)
+    navigate('/integrations')
+  }
+
+  async function handleDeleteCustomApi() {
+    if (!customApiDef) return
+    if (
+      !window.confirm(
+        `Delete the custom API "${customApiDef.name}"? This removes the definition. ` +
+          'It cannot be undone.',
+      )
+    )
+      return
+    await removeCustomApi(customApiDef.id)
     navigate('/integrations')
   }
 
@@ -302,6 +320,15 @@ export default function ConnectionDetailPage() {
         >
           {isConnected ? (
             <>
+              {customApiDef && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/integrations/custom-api/${customApiDef.id}`)}
+                >
+                  Edit
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -321,8 +348,22 @@ export default function ConnectionDetailPage() {
               <Button size="sm" onClick={() => setConnectOpen(true)}>
                 Connect
               </Button>
-              {isCustom && (
+              {customApiDef && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/integrations/custom-api/${customApiDef.id}`)}
+                >
+                  Edit
+                </Button>
+              )}
+              {customMcpDef && (
                 <Button variant="destructive" size="sm" onClick={handleDeleteCustom}>
+                  Delete
+                </Button>
+              )}
+              {customApiDef && (
+                <Button variant="destructive" size="sm" onClick={handleDeleteCustomApi}>
                   Delete
                 </Button>
               )}
@@ -416,7 +457,7 @@ export default function ConnectionDetailPage() {
                     </span>
                   </MetaItem>
                 )}
-                {(inst || (integration.type === 'api' && integration.tools?.length)) && (
+                {(inst || (integration.type === 'custom' && integration.tools?.length)) && (
                   <MetaItem
                     label="Tools"
                     value={
@@ -643,7 +684,7 @@ export default function ConnectionDetailPage() {
               </div>
             )}
           </>
-        ) : integration.type === 'api' && integration.tools?.length ? (
+        ) : integration.type === 'custom' && integration.tools?.length ? (
           <PreviewToolList
             integration={integration}
             filter={toolFilter}

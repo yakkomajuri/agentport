@@ -29,6 +29,7 @@ from agent_port.api import (  # noqa: E402
     api_keys,
     auth,
     billing,
+    custom_api,
     custom_mcp,
     email_verification,
     google_login,
@@ -153,6 +154,7 @@ class _ImmutableAssetStaticFiles(StaticFiles):
 # custom_mcp must come first so its /api/integrations/custom routes win against
 # the catalog's GET /api/integrations/{integration_id} catch-all.
 app.include_router(custom_mcp.router)
+app.include_router(custom_api.router)
 app.include_router(integrations.router)
 app.include_router(admin.router)
 app.include_router(api_keys.router)
