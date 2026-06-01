@@ -221,21 +221,20 @@ def update_rule(
 
     effect_after = body.effect if body.effect is not None else rule.effect
     enabled_after = body.enabled if body.enabled is not None else rule.enabled
+    existing_conditions = [
+        {
+            "param_path": c.param_path,
+            "operator": c.operator,
+            "values": json.loads(c.values_json),
+        }
+        for c in session.exec(
+            select(ToolExecutionRuleCondition).where(ToolExecutionRuleCondition.rule_id == rule.id)
+        ).all()
+    ]
     conditions_after = (
         [c.model_dump() for c in body.conditions]
         if body.conditions is not None
-        else [
-            {
-                "param_path": c.param_path,
-                "operator": c.operator,
-                "values": json.loads(c.values_json),
-            }
-            for c in session.exec(
-                select(ToolExecutionRuleCondition).where(
-                    ToolExecutionRuleCondition.rule_id == rule.id
-                )
-            ).all()
-        ]
+        else existing_conditions
     )
 
     try:
@@ -247,13 +246,24 @@ def update_rule(
     except RuleValidationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    # Require a second factor whenever this write transitions the rule *into* an
-    # active allow state (newly allow, newly enabled, or an allow rule's
-    # conditions being broadened). A rule that is already an active allow rule
-    # and stays one without changes does not re-challenge.
+    # Require a second factor whenever this write produces an active (enabled)
+    # allow rule AND meaningfully changes its scope. That covers transitioning
+    # into allow, enabling an allow rule, and *broadening* an already-active allow
+    # rule by editing its conditions or priority. Cosmetic edits (e.g. renaming)
+    # to an unchanged active allow rule do not re-challenge.
+    def _norm(conds: list[dict]) -> list[tuple]:
+        return [(c["param_path"], c["operator"], tuple(c["values"])) for c in conds]
+
     was_active_allow = rule.effect == "allow" and rule.enabled
     now_active_allow = effect_after == "allow" and enabled_after
-    if now_active_allow and not was_active_allow:
+    conditions_changed = body.conditions is not None and _norm(conditions_after) != _norm(
+        existing_conditions
+    )
+    priority_changed = body.priority is not None and body.priority != rule.priority
+    escalating_allow = now_active_allow and (
+        not was_active_allow or conditions_changed or priority_changed
+    )
+    if escalating_allow:
         require_second_factor(current_user, body.totp_code)
         session.add(current_user)
 

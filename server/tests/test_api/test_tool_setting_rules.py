@@ -189,6 +189,58 @@ async def test_update_to_allow_requires_totp(client, session, test_user):
     assert resp.json()["detail"]["error"] == "totp_required"
 
 
+@pytest.mark.anyio
+async def test_broadening_active_allow_rule_conditions_requires_totp(client, session, test_user):
+    secret = _enable_totp(test_user, session)
+    # Create an active allow rule (with TOTP), then try to broaden its conditions.
+    created = (
+        await client.post(
+            RULES_BASE,
+            json=_rule_body(
+                effect="allow",
+                totp_code=pyotp.TOTP(secret).now(),
+                conditions=[
+                    {"param_path": "to", "operator": "ends_with", "values": ["@useskald.com"]}
+                ],
+            ),
+        )
+    ).json()
+    resp = await client.patch(
+        f"{RULES_BASE}/{created['id']}",
+        json={"conditions": [{"param_path": "to", "operator": "ends_with", "values": ["@"]}]},
+    )
+    assert resp.status_code == 403
+    assert resp.json()["detail"]["error"] == "totp_required"
+
+
+@pytest.mark.anyio
+async def test_changing_active_allow_rule_priority_requires_totp(client, session, test_user):
+    secret = _enable_totp(test_user, session)
+    created = (
+        await client.post(
+            RULES_BASE,
+            json=_rule_body(effect="allow", priority=100, totp_code=pyotp.TOTP(secret).now()),
+        )
+    ).json()
+    resp = await client.patch(f"{RULES_BASE}/{created['id']}", json={"priority": 10})
+    assert resp.status_code == 403
+    assert resp.json()["detail"]["error"] == "totp_required"
+
+
+@pytest.mark.anyio
+async def test_renaming_active_allow_rule_does_not_require_totp(client, session, test_user):
+    secret = _enable_totp(test_user, session)
+    created = (
+        await client.post(
+            RULES_BASE, json=_rule_body(effect="allow", totp_code=pyotp.TOTP(secret).now())
+        )
+    ).json()
+    # A cosmetic name-only change must not re-challenge.
+    resp = await client.patch(f"{RULES_BASE}/{created['id']}", json={"name": "Renamed"})
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "Renamed"
+
+
 # ── test endpoint ──
 
 

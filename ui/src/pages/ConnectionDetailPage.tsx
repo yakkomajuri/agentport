@@ -94,6 +94,10 @@ export default function ConnectionDetailPage() {
     } else {
       clear()
     }
+    // Collapse any open policy editor when switching connections. Cached rules
+    // are keyed by integration so they don't need clearing, but a stale open
+    // row would otherwise carry over to the next connection.
+    setExpandedPolicyToolName(null)
     return () => clear()
   }, [inst?.integration_id])
 
@@ -251,16 +255,22 @@ export default function ConnectionDetailPage() {
 
   // ── Rule cache + CRUD ──
 
+  // Cache rules under a composite "<integration>::<tool>" key so tools that
+  // share a name across integrations never read each other's cached rules.
+  function ruleKey(toolName: string) {
+    return `${inst?.integration_id ?? ''}::${toolName}`
+  }
+
   function syncRuleCounts(toolName: string, rules: ToolExecutionRule[]) {
     patchToolRuleCounts(toolName, rules.length, rules.filter((r) => r.enabled).length)
   }
 
   async function loadRules(toolName: string) {
-    if (!inst || rulesByTool[toolName]) return
+    if (!inst || rulesByTool[ruleKey(toolName)]) return
     setRulesLoadingTool(toolName)
     try {
       const rules = await api.toolSettings.listRules(inst.integration_id, toolName)
-      setRulesByTool((prev) => ({ ...prev, [toolName]: rules }))
+      setRulesByTool((prev) => ({ ...prev, [ruleKey(toolName)]: rules }))
     } finally {
       setRulesLoadingTool(null)
     }
@@ -296,9 +306,9 @@ export default function ConnectionDetailPage() {
     if (!inst) return
     const apply = (rule: ToolExecutionRule) =>
       setRulesByTool((prev) => {
-        const next = [...(prev[toolName] ?? []), rule]
+        const next = [...(prev[ruleKey(toolName)] ?? []), rule]
         syncRuleCounts(toolName, next)
-        return { ...prev, [toolName]: next }
+        return { ...prev, [ruleKey(toolName)]: next }
       })
     setSavingRule(true)
     try {
@@ -325,9 +335,9 @@ export default function ConnectionDetailPage() {
     if (!inst) return
     const apply = (rule: ToolExecutionRule) =>
       setRulesByTool((prev) => {
-        const next = (prev[toolName] ?? []).map((r) => (r.id === rule.id ? rule : r))
+        const next = (prev[ruleKey(toolName)] ?? []).map((r) => (r.id === rule.id ? rule : r))
         syncRuleCounts(toolName, next)
-        return { ...prev, [toolName]: next }
+        return { ...prev, [ruleKey(toolName)]: next }
       })
     setSavingRule(true)
     try {
@@ -354,9 +364,9 @@ export default function ConnectionDetailPage() {
     if (!inst) return
     await api.toolSettings.deleteRule(inst.integration_id, toolName, ruleId)
     setRulesByTool((prev) => {
-      const next = (prev[toolName] ?? []).filter((r) => r.id !== ruleId)
+      const next = (prev[ruleKey(toolName)] ?? []).filter((r) => r.id !== ruleId)
       syncRuleCounts(toolName, next)
-      return { ...prev, [toolName]: next }
+      return { ...prev, [ruleKey(toolName)]: next }
     })
   }
 
@@ -365,8 +375,8 @@ export default function ConnectionDetailPage() {
       <ToolPolicyExpandedRow
         toolName={tool.name}
         fallbackMode={tool.execution_mode || 'require_approval'}
-        rules={rulesByTool[tool.name] ?? []}
-        rulesLoading={rulesLoadingTool === tool.name && !rulesByTool[tool.name]}
+        rules={rulesByTool[ruleKey(tool.name)] ?? []}
+        rulesLoading={rulesLoadingTool === tool.name && !rulesByTool[ruleKey(tool.name)]}
         savingRule={savingRule}
         fallbackUpdating={updating === tool.name}
         onSetFallback={(mode) =>
