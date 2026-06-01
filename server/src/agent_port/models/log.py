@@ -31,3 +31,6 @@ class LogEntry(SQLModel, table=True):
     # target user in the logs UI and downstream analytics.
     impersonator_user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", index=True)
     additional_info: str | None = None
+    # The conditional policy rule that produced this decision, if any. Null when
+    # the decision came from the fallback ToolExecutionSetting.mode.
+    matched_rule_id: uuid.UUID | None = Field(default=None, index=True)

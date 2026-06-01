@@ -90,6 +90,52 @@ async def test_list_tools_applies_execution_modes_in_bulk(client, session, test_
 
 
 @pytest.mark.anyio
+async def test_list_tools_includes_policy_summary(client, session, test_org):
+    from agent_port.models.tool_execution_rule import ToolExecutionRule
+
+    await client.post(
+        "/api/installed",
+        json={"integration_id": "posthog", "auth_method": "token", "token": "phx_key"},
+    )
+    session.add(
+        ToolExecutionRule(
+            org_id=test_org.id,
+            integration_id="posthog",
+            tool_name="tool_with_rule",
+            name="r1",
+            effect="deny",
+            enabled=True,
+        )
+    )
+    session.add(
+        ToolExecutionRule(
+            org_id=test_org.id,
+            integration_id="posthog",
+            tool_name="tool_with_rule",
+            name="r2",
+            effect="allow",
+            enabled=False,
+        )
+    )
+    session.commit()
+
+    mock_tools = [
+        {"name": "tool_with_rule", "description": "Has rules", "inputSchema": {}},
+        {"name": "tool_plain", "description": "No rules", "inputSchema": {}},
+    ]
+    with patch("agent_port.mcp.client.list_tools", new_callable=AsyncMock, return_value=mock_tools):
+        resp = await client.get("/api/tools/posthog")
+
+    assert resp.status_code == 200
+    data = {tool["name"]: tool for tool in resp.json()}
+    assert data["tool_with_rule"]["policy_rule_count"] == 2
+    assert data["tool_with_rule"]["policy_enabled_rule_count"] == 1
+    assert data["tool_with_rule"]["policy_display_mode"] == "conditional"
+    assert data["tool_plain"]["policy_rule_count"] == 0
+    assert data["tool_plain"]["policy_display_mode"] == "default_only"
+
+
+@pytest.mark.anyio
 async def test_list_tools_waits_for_in_progress_refresh(client, session, test_org, monkeypatch):
     await client.post(
         "/api/installed",

@@ -363,7 +363,7 @@ Remove an installed integration by ID.
 
 ### `GET /api/tools`
 
-List tools across all installed integrations in your org. Each tool includes an `execution_mode` field indicating whether it can be called freely or requires approval.
+List tools across all installed integrations in your org. Each tool includes policy summary fields describing its fallback execution mode and any conditional rules.
 
 **Response:**
 ```json
@@ -373,10 +373,17 @@ List tools across all installed integrations in your org. Each tool includes an 
     "name": "get_events",
     "description": "...",
     "input_schema": {},
-    "execution_mode": "require_approval"
+    "execution_mode": "require_approval",
+    "policy_display_mode": "conditional",
+    "policy_rule_count": 2,
+    "policy_enabled_rule_count": 2
   }
 ]
 ```
+
+- `execution_mode` — the tool's **fallback** mode, kept for backward compatibility (`allow`, `require_approval`, or `deny`).
+- `policy_display_mode` — `"conditional"` when the tool has at least one enabled rule, otherwise `"default_only"`.
+- `policy_rule_count` / `policy_enabled_rule_count` — total and enabled conditional rule counts.
 
 ### `GET /api/tools/{integration_id}`
 
@@ -435,7 +442,7 @@ If you want the server to hold the wait instead of sleeping in the client, use
 
 ## Tool Settings
 
-Manage per-tool execution modes. By default, all tools require approval (`require_approval`).
+Manage per-tool execution policy. Each tool has a **fallback mode** (`ToolExecutionSetting.mode`) plus an optional set of **conditional rules** that override the fallback based on the call arguments. By default, all tools require approval (`require_approval`). See [Tool Approvals](tool-approvals.md) for the full evaluation semantics.
 
 ### `GET /api/tool-settings/{integration_id}`
 
@@ -458,16 +465,82 @@ List execution settings for tools on the given installed integration.
 
 ### `PUT /api/tool-settings/{integration_id}/{tool_name}`
 
-Set execution mode for a specific tool.
+Set the **fallback** execution mode for a specific tool.
 
 **Body:**
 ```json
 {
-  "mode": "allow"
+  "mode": "allow",
+  "totp_code": "123456"
 }
 ```
 
-Valid modes: `allow`, `require_approval`.
+Valid modes: `allow`, `require_approval`, `deny`. Escalating a tool to `allow` requires `totp_code` when the user has two-factor enabled.
+
+### Conditional rules
+
+Rules refine the fallback mode based on the call's arguments. They are scoped to one (org, integration, tool). See [Tool Approvals → Conditional rules](tool-approvals.md#conditional-rules-granular-policy) for matching and precedence semantics.
+
+A rule object looks like:
+
+```json
+{
+  "id": "…",
+  "integration_id": "resend",
+  "tool_name": "send_email",
+  "name": "Allow known recipients",
+  "priority": 100,
+  "effect": "allow",
+  "enabled": true,
+  "created_at": "2026-06-01T12:00:00",
+  "updated_at": "2026-06-01T12:00:00",
+  "conditions": [
+    { "id": "…", "param_path": "to", "operator": "ends_with", "values": ["@useskald.com", "@example.com"], "position": 0 }
+  ]
+}
+```
+
+- `effect` — one of `allow`, `require_approval`, `deny`.
+- `operator` — one of `equals`, `contains`, `starts_with`, `ends_with`.
+
+**Write-time validation** (backend is authoritative): at most 20 rules per tool, 10 conditions per rule, 20 values per condition, 512 characters per value; `param_path` must be non-empty; `operator` and `effect` must be from the allowlists above.
+
+#### `GET /api/tool-settings/{integration_id}/{tool_name}/rules`
+
+List the tool's rules (ascending priority).
+
+#### `POST /api/tool-settings/{integration_id}/{tool_name}/rules`
+
+Create a rule. Body: `name`, `effect`, `priority` (default 100), `enabled` (default `true`), `conditions[]`, and optional `totp_code`. Creating or enabling an `allow` rule requires `totp_code` when two-factor is on.
+
+#### `PATCH /api/tool-settings/{integration_id}/{tool_name}/rules/{rule_id}`
+
+Update a rule. Any of `name`, `effect`, `priority`, `enabled`, `conditions` may be supplied; `conditions`, when present, fully replaces the existing conditions. Transitioning a rule into an active `allow` state requires `totp_code` when two-factor is on.
+
+#### `DELETE /api/tool-settings/{integration_id}/{tool_name}/rules/{rule_id}`
+
+Delete a rule. Returns `204`.
+
+#### `POST /api/tool-settings/{integration_id}/{tool_name}/rules/test`
+
+Evaluate sample arguments against the current policy without executing the tool.
+
+**Body:**
+```json
+{ "args": { "to": "ops@useskald.com", "subject": "weekly report" } }
+```
+
+**Response:**
+```json
+{
+  "effect": "allow",
+  "allowed": true,
+  "matched_rule_id": "…",
+  "source": "rule"
+}
+```
+
+`source` is `"rule"` when a conditional rule decided the outcome, or `"fallback"` when the tool's fallback mode applied (`matched_rule_id` is then `null`).
 
 ---
 

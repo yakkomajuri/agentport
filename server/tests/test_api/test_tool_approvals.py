@@ -34,6 +34,77 @@ async def test_call_tool_blocked_by_default(client):
     assert data["tool_name"] == "create_annotation"
 
 
+def _seed_rule(session, org_id, *, effect, param, op, values, priority=100):
+    import json as _json
+
+    from agent_port.models.tool_execution_rule import (
+        ToolExecutionRule,
+        ToolExecutionRuleCondition,
+    )
+
+    rule = ToolExecutionRule(
+        org_id=org_id,
+        integration_id="posthog",
+        tool_name="create_annotation",
+        name=f"{effect}-rule",
+        effect=effect,
+        priority=priority,
+        enabled=True,
+    )
+    session.add(rule)
+    session.commit()
+    session.refresh(rule)
+    session.add(
+        ToolExecutionRuleCondition(
+            rule_id=rule.id, param_path=param, operator=op, values_json=_json.dumps(values)
+        )
+    )
+    session.commit()
+    return rule
+
+
+@pytest.mark.anyio
+async def test_rest_call_denied_by_rule(client, session, test_org):
+    await client.post(
+        "/api/installed",
+        json={"integration_id": "posthog", "auth_method": "token", "token": "phx_key"},
+    )
+    _seed_rule(
+        session, test_org.id, effect="deny", param="content", op="contains", values=["secret"]
+    )
+    resp = await client.post(
+        "/api/tools/posthog/call",
+        json={"tool_name": "create_annotation", "args": {"content": "a secret note"}},
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"] == "denied"
+
+
+@pytest.mark.anyio
+async def test_rest_call_allowed_by_rule(client, session, test_org):
+    await client.post(
+        "/api/installed",
+        json={"integration_id": "posthog", "auth_method": "token", "token": "phx_key"},
+    )
+    rule = _seed_rule(
+        session, test_org.id, effect="allow", param="content", op="contains", values=["ok"]
+    )
+    mock_result = {"content": [{"type": "text", "text": "done"}], "isError": False}
+    with patch("agent_port.mcp.client.call_tool", new_callable=AsyncMock, return_value=mock_result):
+        resp = await client.post(
+            "/api/tools/posthog/call",
+            json={"tool_name": "create_annotation", "args": {"content": "this is ok"}},
+        )
+    assert resp.status_code == 200
+    assert resp.json()["isError"] is False
+    # The matched rule id is recorded on the executed log entry.
+    from agent_port.models.log import LogEntry
+
+    log = session.exec(select(LogEntry).where(LogEntry.matched_rule_id == rule.id)).first()
+    assert log is not None
+    assert log.outcome == "executed"
+
+
 @pytest.mark.anyio
 async def test_call_tool_allowed_mode(client, session, test_org):
     await client.post(

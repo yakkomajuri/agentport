@@ -171,6 +171,7 @@ async def execute_upstream_tool(
                         api_key_prefix=api_key_prefix,
                         impersonator_user_id=impersonator_user_id,
                         additional_info=additional_info,
+                        matched_rule_id=decision.matched_rule_id,
                     )
                 )
                 session.commit()
@@ -197,6 +198,7 @@ async def execute_upstream_tool(
                     user_agent=user_agent,
                     api_key_label=api_key_label,
                     additional_info=additional_info,
+                    matched_rule_id=decision.matched_rule_id,
                 )
 
                 # Create a pending log entry so the request shows up in the logs immediately.
@@ -222,6 +224,7 @@ async def execute_upstream_tool(
                             api_key_prefix=api_key_prefix,
                             impersonator_user_id=impersonator_user_id,
                             additional_info=additional_info,
+                            matched_rule_id=decision.matched_rule_id,
                         )
                     )
                     session.commit()
@@ -262,6 +265,7 @@ async def execute_upstream_tool(
                 api_key_label=api_key_label,
                 api_key_prefix=api_key_prefix,
                 additional_info=additional_info,
+                matched_rule_id=decision.matched_rule_id,
             )
             auto_approval_id = auto_req.id
 
@@ -296,6 +300,7 @@ async def execute_upstream_tool(
         user_agent=user_agent,
         api_key_label=api_key_label,
         api_key_prefix=api_key_prefix,
+        matched_rule_id=decision.matched_rule_id,
     )
 
 
@@ -315,6 +320,7 @@ async def _dispatch_and_log(
     api_key_label: str | None,
     api_key_prefix: str | None,
     impersonator_user_id: uuid.UUID | None,
+    matched_rule_id: uuid.UUID | None = None,
 ) -> list[types.TextContent]:
     """Load the installed integration + oauth state, call the upstream tool, log.
 
@@ -435,6 +441,8 @@ async def _dispatch_and_log(
             log.result_json = json.dumps(result) if result and last_error is None else None
             log.error = str(last_error) if last_error else None
             log.access_reason = access_reason
+            if matched_rule_id is not None and log.matched_rule_id is None:
+                log.matched_rule_id = matched_rule_id
             if additional_info and not log.additional_info:
                 log.additional_info = additional_info
             if impersonator_user_id is not None and log.impersonator_user_id is None:
@@ -459,6 +467,7 @@ async def _dispatch_and_log(
                     outcome=outcome,
                     impersonator_user_id=impersonator_user_id,
                     additional_info=additional_info,
+                    matched_rule_id=matched_rule_id,
                 )
             )
         session.commit()

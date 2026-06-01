@@ -220,6 +220,9 @@ export interface Tool {
   integration_id?: string
   category?: string | null
   execution_mode?: string
+  policy_display_mode?: 'default_only' | 'conditional'
+  policy_rule_count?: number
+  policy_enabled_rule_count?: number
 }
 
 export interface ToolCallSuccess {
@@ -298,6 +301,46 @@ export interface ToolExecutionSettingResponse {
   mode: string
   updated_by_user_id: string | null
   updated_at: string
+}
+
+export type RuleEffect = 'allow' | 'require_approval' | 'deny'
+export type RuleOperator = 'equals' | 'contains' | 'starts_with' | 'ends_with'
+
+export interface RuleCondition {
+  id?: string
+  param_path: string
+  operator: RuleOperator
+  values: string[]
+  position?: number
+}
+
+export interface ToolExecutionRule {
+  id: string
+  integration_id: string
+  tool_name: string
+  name: string
+  priority: number
+  effect: RuleEffect
+  enabled: boolean
+  created_at: string
+  updated_at: string
+  conditions: RuleCondition[]
+}
+
+export interface RuleWriteBody {
+  name?: string
+  effect?: RuleEffect
+  priority?: number
+  enabled?: boolean
+  conditions?: RuleCondition[]
+  totp_code?: string | null
+}
+
+export interface RuleTestResult {
+  effect: RuleEffect
+  allowed: boolean
+  matched_rule_id: string | null
+  source: 'rule' | 'fallback'
 }
 
 export interface ApiKey {
@@ -691,6 +734,41 @@ export const api = {
           method: 'PUT',
           body: JSON.stringify({ mode, totp_code: totp_code ?? null }),
         },
+      )
+    },
+    listRules(integration_id: string, toolName: string) {
+      return request<ToolExecutionRule[]>(
+        `/tool-settings/${encodeURIComponent(integration_id)}/${encodeURIComponent(toolName)}/rules`,
+      )
+    },
+    createRule(integration_id: string, toolName: string, body: RuleWriteBody) {
+      return request<ToolExecutionRule>(
+        `/tool-settings/${encodeURIComponent(integration_id)}/${encodeURIComponent(toolName)}/rules`,
+        { method: 'POST', body: JSON.stringify(body) },
+      )
+    },
+    updateRule(integration_id: string, toolName: string, ruleId: string, body: RuleWriteBody) {
+      return request<ToolExecutionRule>(
+        `/tool-settings/${encodeURIComponent(integration_id)}/${encodeURIComponent(
+          toolName,
+        )}/rules/${encodeURIComponent(ruleId)}`,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      )
+    },
+    deleteRule(integration_id: string, toolName: string, ruleId: string) {
+      return request<void>(
+        `/tool-settings/${encodeURIComponent(integration_id)}/${encodeURIComponent(
+          toolName,
+        )}/rules/${encodeURIComponent(ruleId)}`,
+        { method: 'DELETE' },
+      )
+    },
+    testRules(integration_id: string, toolName: string, args: Record<string, unknown>) {
+      return request<RuleTestResult>(
+        `/tool-settings/${encodeURIComponent(integration_id)}/${encodeURIComponent(
+          toolName,
+        )}/rules/test`,
+        { method: 'POST', body: JSON.stringify({ args }) },
       )
     },
   },

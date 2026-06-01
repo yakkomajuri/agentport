@@ -10,6 +10,7 @@ interface ToolsState {
   fetchForIntegration: (integrationId: string) => Promise<void>
   fetchAll: () => Promise<void>
   patchToolMode: (toolName: string, mode: string) => void
+  patchToolRuleCounts: (toolName: string, total: number, enabled: number) => void
   clear: () => void
 }
 
@@ -47,6 +48,20 @@ export const useToolsStore = create<ToolsState>((set) => ({
   patchToolMode: (toolName, mode) =>
     set((state) => ({
       tools: state.tools.map((t) => (t.name === toolName ? { ...t, execution_mode: mode } : t)),
+    })),
+
+  patchToolRuleCounts: (toolName, total, enabled) =>
+    set((state) => ({
+      tools: state.tools.map((t) =>
+        t.name === toolName
+          ? {
+              ...t,
+              policy_rule_count: total,
+              policy_enabled_rule_count: enabled,
+              policy_display_mode: enabled > 0 ? 'conditional' : 'default_only',
+            }
+          : t,
+      ),
     })),
 
   clear: () => set({ tools: [], loading: false, error: null }),

@@ -29,6 +29,7 @@ def get_or_create_approval_request(
     api_key_label: str | None = None,
     api_key_prefix: str | None = None,
     additional_info: str | None = None,
+    matched_rule_id: uuid.UUID | None = None,
 ) -> ToolApprovalRequest:
     normalized = normalize_tool_args(args)
     args_hash = hash_normalized_args(normalized)
@@ -72,6 +73,7 @@ def get_or_create_approval_request(
         api_key_label=api_key_label,
         api_key_prefix=api_key_prefix,
         additional_info=additional_info,
+        matched_rule_id=matched_rule_id,
     )
     session.add(request)
     session.commit()
@@ -91,6 +93,7 @@ def create_auto_approved_request(
     api_key_label: str | None = None,
     api_key_prefix: str | None = None,
     additional_info: str | None = None,
+    matched_rule_id: uuid.UUID | None = None,
 ) -> ToolApprovalRequest:
     """Create an already-decided request record for a policy-matched (auto-approved) call."""
     normalized = normalize_tool_args(args)
@@ -115,6 +118,7 @@ def create_auto_approved_request(
         api_key_label=api_key_label,
         api_key_prefix=api_key_prefix,
         additional_info=additional_info,
+        matched_rule_id=matched_rule_id,
     )
     session.add(request)
     session.commit()

@@ -9,9 +9,12 @@ Agent Port is safe by default: every tool call requires explicit approval before
 
 1. **Default deny** — All discovered tools start in `require_approval` mode. Nothing runs unless explicitly allowed.
 
-2. **Per-tool modes** — Each tool on an installed integration has an execution mode:
+2. **Per-tool modes** — Each tool on an installed integration has a fallback execution mode:
    - `require_approval` (default) — calls are blocked until approved
    - `allow` — calls execute immediately without approval
+   - `deny` — calls are always blocked and can never execute
+
+   This mode is the **fallback**: it applies only when no conditional rule (below) matches the call.
 
 3. **Approval flow** — When a blocked call happens:
    - Agent Port creates a pending approval request
@@ -34,6 +37,67 @@ Agent Port is safe by default: every tool call requires explicit approval before
 ## Tool-level allow policies
 
 When a user chooses "allow tool forever", Agent Port updates that tool's execution mode to `allow`. Future calls with the **same integration and tool** are allowed automatically, regardless of arguments.
+
+## Conditional rules (granular policy)
+
+The fallback mode decides what happens to *every* call to a tool. Conditional rules let you make the decision depend on the **arguments** of the call. A tool's effective policy is therefore:
+
+> **rules first (if any match), otherwise the fallback mode.**
+
+Each rule belongs to one (org, integration, tool) and has:
+
+- a **priority** (integer; lower numbers are evaluated first)
+- an **effect**: `allow`, `require_approval`, or `deny`
+- an **enabled** flag (disabled rules are ignored)
+- one or more **conditions**
+
+### Conditions and operators
+
+A condition tests a single named parameter of the call:
+
+| Operator | Matches when the parameter… |
+|----------|------------------------------|
+| `equals` | equals one of the values exactly |
+| `contains` | contains one of the values as a substring |
+| `starts_with` | starts with one of the values |
+| `ends_with` | ends with one of the values |
+
+No regular expressions and no negation in the current version.
+
+Matching semantics:
+
+- **Values inside one condition are OR-ed** — `to ends_with [@useskald.com, @example.com]` matches either domain.
+- **An array-valued parameter is OR-ed across its elements** — if `to` is a list of recipients, the condition matches when *any* recipient matches.
+- **Conditions inside one rule are AND-ed** — every condition must match for the rule to apply.
+- **A missing parameter never matches.**
+
+### Evaluation order (precedence)
+
+For each tool call:
+
+1. Collect the **enabled** rules for the org + integration + tool.
+2. Consider only the rules that **match** the call's arguments.
+3. Pick the matching rule(s) with the **lowest priority number**.
+4. If several rules tie on priority, effect precedence decides: **`deny` > `require_approval` > `allow`**.
+5. If **no rule matches**, fall back to the tool's `ToolExecutionSetting.mode`.
+6. If there is **no setting** either, the call requires approval (`require_approval`).
+
+The matched rule's id is recorded on the resulting log entry and approval request for auditing.
+
+### Example: `send_email`
+
+Suppose `send_email` should run freely to your own domains, but always pause for review when the subject looks sensitive. With a fallback of **Ask for approval**:
+
+| Priority | Rule | If param | Operator | Values | Then |
+|----------|------|----------|----------|--------|------|
+| 100 | Allow known recipients | `to` | ends with | `@useskald.com`, `@example.com` | Allow |
+| 100 | Review sensitive subjects | `subject` | contains | `password`, `secret` | Ask |
+
+A mail to `ops@useskald.com` with subject `"weekly report"` matches only the first rule → **allowed**. A mail to `ops@useskald.com` with subject `"your password"` matches both rules at priority 100 → `require_approval` wins over `allow` → **asks for approval**. A mail to `someone@gmail.com` matches neither rule → falls back to **Ask for approval**.
+
+### Second factor for allow rules
+
+Just like escalating the fallback mode to `allow`, **creating or updating a rule whose effect is `allow`** (or enabling such a rule) requires a fresh TOTP code when the user has two-factor enabled.
 
 ## Request lifecycle
 
@@ -58,13 +122,19 @@ The override applies to newly created requests; in-flight pending requests keep 
 ## Policy evaluation order
 
 For each tool call:
-1. Check the tool's execution setting → if `allow`, execute
-2. Otherwise → block and create/reuse approval request
+1. Evaluate the tool's enabled **conditional rules** against the call arguments (see [Conditional rules](#conditional-rules-granular-policy)). The winning rule's effect decides the outcome.
+2. If no rule matches, use the tool's fallback execution setting → if `allow`, execute; if `deny`, block permanently.
+3. Otherwise → block and create/reuse an approval request.
 
 ## API endpoints
 
 See [API Reference](api.md) for full details:
-- `PUT /api/tool-settings/{integration}/{tool}` — set execution mode
+- `PUT /api/tool-settings/{integration}/{tool}` — set the fallback execution mode
+- `GET /api/tool-settings/{integration}/{tool}/rules` — list conditional rules
+- `POST /api/tool-settings/{integration}/{tool}/rules` — create a rule
+- `PATCH /api/tool-settings/{integration}/{tool}/rules/{rule_id}` — update a rule
+- `DELETE /api/tool-settings/{integration}/{tool}/rules/{rule_id}` — delete a rule
+- `POST /api/tool-settings/{integration}/{tool}/rules/test` — test args against the current policy
 - `GET /api/tool-approvals/requests` — list approval requests
 - `POST /api/tool-approvals/requests/{id}/await` — long-poll for a decision
 - `POST /api/tool-approvals/requests/{id}/approve-once` — one-time approval
@@ -74,4 +144,4 @@ See [API Reference](api.md) for full details:
 
 ## Logging
 
-All blocked calls generate log entries with `outcome: "approval_required"` and a reference to the approval request ID. Successful calls log `outcome: "executed"`.
+All blocked calls generate log entries with `outcome: "approval_required"` and a reference to the approval request ID. Successful calls log `outcome: "executed"`. When the decision came from a conditional rule, the log entry and the approval request both record the `matched_rule_id`.
