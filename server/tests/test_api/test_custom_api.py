@@ -227,3 +227,214 @@ async def test_custom_api_test_rejects_localhost(client):
 
     assert resp.status_code == 400
     assert "blocked network range" in resp.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_custom_api_test_does_not_leak_stored_token_to_other_targets(
+    client, session, test_org, monkeypatch
+):
+    """The stored installed token must only be reused when the test request
+    targets the same connection that owns it. Otherwise a caller could swap
+    base_url to a domain they control and have us send the secret there.
+    """
+    monkeypatch.setattr("agent_port.api.custom_api.validate_safe_url", _safe_url_stub)
+
+    create_resp = await client.post(
+        "/api/integrations/custom-api",
+        json={
+            "name": "Tokened API",
+            "base_url": "https://api.example.com",
+            "token_header": "Authorization",
+            "token_format": "Bearer {token}",
+            "tools": [_tool()],
+        },
+    )
+    assert create_resp.status_code == 201
+    row_id = create_resp.json()["id"]
+    integration_id = create_resp.json()["integration_id"]
+
+    from agent_port.secrets.records import upsert_secret
+
+    secret = upsert_secret(
+        session,
+        org_id=test_org.id,
+        kind="integration_token",
+        ref=f"integrations/{test_org.id}/{integration_id}/token",
+        value="sk_live_super_secret",
+        secret_id=None,
+    )
+    installed = InstalledIntegration(
+        org_id=test_org.id,
+        integration_id=integration_id,
+        type="custom",
+        url="https://api.example.com",
+        auth_method="token",
+        connected=True,
+        token_secret_id=secret.id,
+    )
+    session.add(installed)
+    session.commit()
+
+    captured_headers: dict = {}
+
+    async def _dispatch(**kwargs):
+        captured_headers.update(kwargs["headers"])
+        return {
+            "content": [{"type": "text", "text": "ok"}],
+            "isError": False,
+            "status_code": 200,
+            "duration_ms": 1,
+        }
+
+    monkeypatch.setattr("agent_port.api.custom_api.api_client.dispatch_api_tool", _dispatch)
+
+    # Caller omits token AND swaps base_url to an attacker-controlled host.
+    resp = await client.post(
+        "/api/integrations/custom-api/test",
+        json={
+            "base_url": "https://attacker.example.com",
+            "token_header": "Authorization",
+            "token_format": "Bearer {token}",
+            "token": "",
+            "integration_db_id": row_id,
+            "tool": _tool(),
+            "args": {"id": "1"},
+        },
+    )
+
+    assert resp.status_code == 200
+    # The stored token must NOT have been injected — Authorization is either
+    # absent or empty, never the real secret.
+    assert "sk_live_super_secret" not in captured_headers.get("Authorization", "")
+
+
+@pytest.mark.anyio
+async def test_custom_api_test_uses_stored_token_for_same_target(
+    client, session, test_org, monkeypatch
+):
+    monkeypatch.setattr("agent_port.api.custom_api.validate_safe_url", _safe_url_stub)
+
+    create_resp = await client.post(
+        "/api/integrations/custom-api",
+        json={
+            "name": "Same Target",
+            "base_url": "https://api.example.com",
+            "token_header": "Authorization",
+            "token_format": "Bearer {token}",
+            "tools": [_tool()],
+        },
+    )
+    row_id = create_resp.json()["id"]
+    integration_id = create_resp.json()["integration_id"]
+
+    from agent_port.secrets.records import upsert_secret
+
+    secret = upsert_secret(
+        session,
+        org_id=test_org.id,
+        kind="integration_token",
+        ref=f"integrations/{test_org.id}/{integration_id}/token",
+        value="sk_same_target",
+        secret_id=None,
+    )
+    session.add(
+        InstalledIntegration(
+            org_id=test_org.id,
+            integration_id=integration_id,
+            type="custom",
+            url="https://api.example.com",
+            auth_method="token",
+            connected=True,
+            token_secret_id=secret.id,
+        )
+    )
+    session.commit()
+
+    captured_headers: dict = {}
+
+    async def _dispatch(**kwargs):
+        captured_headers.update(kwargs["headers"])
+        return {"content": [], "isError": False, "status_code": 200, "duration_ms": 1}
+
+    monkeypatch.setattr("agent_port.api.custom_api.api_client.dispatch_api_tool", _dispatch)
+
+    resp = await client.post(
+        "/api/integrations/custom-api/test",
+        json={
+            "base_url": "https://api.example.com",
+            "token_header": "Authorization",
+            "token_format": "Bearer {token}",
+            "token": "",
+            "integration_db_id": row_id,
+            "tool": _tool(),
+            "args": {"id": "1"},
+        },
+    )
+
+    assert resp.status_code == 200
+    assert captured_headers.get("Authorization") == "Bearer sk_same_target"
+
+
+@pytest.mark.anyio
+async def test_custom_api_patch_can_switch_to_no_auth(client, monkeypatch):
+    """Switching token auth → no auth sets both header and format to empty;
+    the merged pair must be validated once, not field-by-field against the
+    other field's old value.
+    """
+    monkeypatch.setattr("agent_port.api.custom_api.validate_safe_url", _safe_url_stub)
+
+    async def _refresh_one(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr("agent_port.api.custom_api.refresh_one", _refresh_one)
+
+    create_resp = await client.post(
+        "/api/integrations/custom-api",
+        json={
+            "name": "Switch Auth",
+            "base_url": "https://api.example.com",
+            "token_header": "Authorization",
+            "token_format": "Bearer {token}",
+            "tools": [],
+        },
+    )
+    assert create_resp.status_code == 201
+    row_id = create_resp.json()["id"]
+
+    resp = await client.patch(
+        f"/api/integrations/custom-api/{row_id}",
+        json={"token_header": "", "token_format": ""},
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["token_header"] == ""
+    assert body["token_format"] == ""
+
+
+@pytest.mark.anyio
+async def test_dispatch_api_tool_revalidates_url_at_dispatch_time():
+    """The api_client must re-check URL safety at dispatch time so a hostname
+    whose A records have changed to point at internal IPs is caught before we
+    connect.
+    """
+    from agent_port import api_client
+    from agent_port.integrations.types import ApiTool, Param
+
+    tool = ApiTool(
+        name="ping",
+        description="ping",
+        method="GET",
+        path="/v1/ping",
+        params=[Param(name="id", type="string", required=True)],
+    )
+
+    result = await api_client.dispatch_api_tool(
+        base_url="http://127.0.0.1:8000",
+        tool_def=tool,
+        args={"id": "1"},
+        headers={},
+    )
+
+    assert result["isError"] is True
+    assert "Unsafe upstream URL" in result["content"][0]["text"]

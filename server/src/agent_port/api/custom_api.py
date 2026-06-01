@@ -23,7 +23,8 @@ from agent_port.mcp.refresh import refresh_one
 from agent_port.models.custom_api_integration import CustomApiIntegration
 from agent_port.models.integration import InstalledIntegration
 from agent_port.models.tool_cache import ToolCache
-from agent_port.token_auth import build_token_auth_headers, validate_token_auth_config
+from agent_port.secrets.records import get_secret_value
+from agent_port.token_auth import build_token_auth_headers, is_no_auth, validate_token_auth_config
 from agent_port.upstream_safety import UnsafeUpstreamUrlError, validate_safe_url
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ class TestCustomApiRequest(BaseModel):
     token_header: str = "Authorization"
     token_format: str = "Bearer {token}"
     token: str = Field(default="", max_length=10000)
+    integration_db_id: uuid.UUID | None = None
     tool: ApiTool
     args: dict[str, Any] = Field(default_factory=dict)
 
@@ -326,13 +328,16 @@ def update_custom_api(
         row.base_url = body.base_url
         runtime_changed = True
         base_url_changed = True
-    if body.token_header is not None and body.token_header != row.token_header:
-        _validate_auth(body.token_header, row.token_format)
-        row.token_header = body.token_header
-        runtime_changed = True
-    if body.token_format is not None and body.token_format != row.token_format:
-        _validate_auth(row.token_header, body.token_format)
-        row.token_format = body.token_format
+    # Validate the *final* header/format pair once. Validating each field
+    # against the other's old value rejects valid transitions — e.g. switching
+    # to "no auth" sets both to "", but checking `('', 'Bearer {token}')`
+    # against the format validator fails before the format update can run.
+    new_header = body.token_header if body.token_header is not None else row.token_header
+    new_format = body.token_format if body.token_format is not None else row.token_format
+    if new_header != row.token_header or new_format != row.token_format:
+        _validate_auth(new_header, new_format)
+        row.token_header = new_header
+        row.token_format = new_format
         runtime_changed = True
     if body.tools is not None:
         tools_json = _tools_to_json(body.tools)
@@ -383,18 +388,41 @@ def delete_custom_api(
 @router.post("/test")
 async def test_custom_api(
     body: TestCustomApiRequest,
+    session: Session = Depends(get_session),
     agent_auth: AgentAuth = Depends(get_agent_auth),
 ) -> dict:
     _validate_base_url(body.base_url)
     _validate_auth(body.token_header, body.token_format)
     tool = _validate_tool_definitions([body.tool])[0]
 
+    token = body.token
+    if (
+        not token
+        and not is_no_auth(body.token_header, body.token_format)
+        and body.integration_db_id
+    ):
+        row = _get_row(session, agent_auth.org.id, body.integration_db_id)
+        # Only inject the stored token when the test is exercising the SAME
+        # connection that owns it. Otherwise a caller could swap base_url to
+        # a domain they control and have us send the secret there.
+        same_target = (
+            body.base_url == row.base_url
+            and body.token_header == row.token_header
+            and body.token_format == row.token_format
+        )
+        if same_target:
+            installed = _installed_row(session, agent_auth.org.id, row.integration_id)
+            if installed and installed.token_secret_id:
+                stored = get_secret_value(session, installed.token_secret_id)
+                if stored:
+                    token = stored
+
     try:
         target = validate_safe_url(
             api_client._build_url(body.base_url, tool.path, body.args),  # noqa: SLF001
             allow_query=True,
         )
-        headers = build_token_auth_headers(body.token_header, body.token_format, body.token)
+        headers = build_token_auth_headers(body.token_header, body.token_format, token)
     except (UnsafeUpstreamUrlError, ValueError) as exc:
         raise _http_400(str(exc)) from exc
 
@@ -415,9 +443,7 @@ async def test_custom_api(
         error_class = exc.__class__.__name__
         duration_ms = int((time.perf_counter() - start) * 1000)
         result = {
-            "content": [
-                {"type": "text", "text": f"API test failed: {_redact(str(exc), body.token)}"}
-            ],
+            "content": [{"type": "text", "text": f"API test failed: {_redact(str(exc), token)}"}],
             "isError": True,
             "status_code": None,
             "duration_ms": duration_ms,
@@ -427,7 +453,7 @@ async def test_custom_api(
         if result.get("isError"):
             error_class = "UpstreamError"
 
-    result = _redact_result_token(result, body.token)
+    result = _redact_result_token(result, token)
     _audit_test_run(
         agent_auth,
         target_host=target.hostname,

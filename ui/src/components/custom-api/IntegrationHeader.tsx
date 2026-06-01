@@ -1,23 +1,19 @@
-import { ArrowLeft, RotateCcw, Save } from 'lucide-react'
+import { ArrowLeft, Plug } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface Props {
-  dirty: boolean
-  saving: boolean
-  isNew: boolean
+  installing: boolean
+  showInstall: boolean
   error: string
-  onSave: () => void
-  onDiscard: () => void
+  onInstall: () => void
   onBack: () => void
 }
 
 export function IntegrationHeader({
-  dirty,
-  saving,
-  isNew,
+  installing,
+  showInstall,
   error,
-  onSave,
-  onDiscard,
+  onInstall,
   onBack,
 }: Props) {
   return (
@@ -74,45 +70,12 @@ export function IntegrationHeader({
         </span>
       )}
 
-      {dirty && (
-        <span
-          aria-label="Unsaved changes"
-          title="Unsaved changes"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            color: 'var(--text-faint)',
-            fontSize: 11,
-            fontStyle: 'italic',
-          }}
-        >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: 'var(--amber)',
-            }}
-          />
-          unsaved
-        </span>
+      {showInstall && (
+        <Button size="sm" onClick={onInstall} disabled={installing}>
+          <Plug size={13} />
+          <span style={{ marginLeft: 5 }}>{installing ? 'Installing…' : 'Install'}</span>
+        </Button>
       )}
-
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onDiscard}
-        disabled={!dirty || saving}
-        title="Discard"
-      >
-        <RotateCcw size={13} />
-        <span style={{ marginLeft: 5 }}>Discard</span>
-      </Button>
-      <Button size="sm" onClick={onSave} disabled={saving || (!dirty && !isNew)}>
-        <Save size={13} />
-        <span style={{ marginLeft: 5 }}>{saving ? 'Saving…' : 'Save'}</span>
-      </Button>
     </div>
   )
 }

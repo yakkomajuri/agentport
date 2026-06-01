@@ -8,6 +8,8 @@ interface Props {
   tokenHeader: string
   tokenFormat: string
   testToken: string
+  tokenLabel?: string
+  tokenPlaceholder?: string
   onBaseUrlChange: (value: string) => void
   onTokenHeaderChange: (value: string) => void
   onTokenFormatChange: (value: string) => void
@@ -33,6 +35,8 @@ export function ConnectionPanel({
   tokenHeader,
   tokenFormat,
   testToken,
+  tokenLabel = 'Override token',
+  tokenPlaceholder = 'Leave blank to use the installed token',
   onBaseUrlChange,
   onTokenHeaderChange,
   onTokenFormatChange,
@@ -212,7 +216,7 @@ export function ConnectionPanel({
           </div>
 
           {preset !== 'none' && (
-            <Field label="Test token">
+            <Field label={tokenLabel}>
               <div style={{ position: 'relative' }}>
                 <KeyRound
                   size={13}
@@ -228,7 +232,7 @@ export function ConnectionPanel({
                   type="password"
                   value={testToken}
                   onChange={(event) => onTestTokenChange(event.target.value)}
-                  placeholder="Used only for testing"
+                  placeholder={tokenPlaceholder}
                   style={{ ...inputStyle, paddingLeft: 30 }}
                 />
               </div>

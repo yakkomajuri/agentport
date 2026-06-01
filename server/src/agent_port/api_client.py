@@ -18,6 +18,7 @@ from agent_port.models.integration import InstalledIntegration
 from agent_port.models.oauth import OAuthState
 from agent_port.secrets.records import get_secret_value
 from agent_port.token_auth import build_token_auth_headers
+from agent_port.upstream_safety import UnsafeUpstreamUrlError, validate_safe_url
 
 # ---------------------------------------------------------------------------
 # Auth helpers
@@ -213,6 +214,19 @@ async def dispatch_api_tool(
 ) -> dict:
     """Execute a declarative ApiTool against an HTTP API."""
     url = _build_url(base_url, tool_def.path, args)
+    # Re-validate the full URL at dispatch time. The base URL was checked when
+    # the integration was saved, but the hostname's DNS records may have
+    # changed (or been crafted) to point at internal IPs since then.
+    try:
+        validate_safe_url(url, allow_query=True)
+    except UnsafeUpstreamUrlError as exc:
+        return {
+            "content": [{"type": "text", "text": f"Unsafe upstream URL: {exc}"}],
+            "isError": True,
+            "status_code": None,
+            "duration_ms": 0,
+        }
+
     query = _build_query(tool_def, args)
 
     body: dict | None = None

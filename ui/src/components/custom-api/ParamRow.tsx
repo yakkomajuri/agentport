@@ -1,4 +1,4 @@
-import { ChevronRight, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, X } from 'lucide-react'
 import { useState } from 'react'
 import { useIsMobile } from '@/lib/useMediaQuery'
 import type { DraftParam, ParamLocation } from './types'
@@ -35,7 +35,7 @@ export function ParamRow({ param, pathLocked, focused, onChange, onRemove }: Pro
             ? '18px minmax(0, 1fr) 24px'
             : '18px minmax(140px, 1.4fr) 110px minmax(120px, 1fr) 24px',
           gap: 8,
-          alignItems: 'center',
+          alignItems: 'end',
           padding: '7px 14px 7px 18px',
         }}
       >
@@ -56,38 +56,33 @@ export function ParamRow({ param, pathLocked, focused, onChange, onRemove }: Pro
           />
         </button>
 
-        <input
-          value={param.name}
-          onChange={(event) => patch({ name: event.target.value })}
-          disabled={pathLocked}
-          placeholder="name"
-          style={{
-            ...nameInputStyle,
-            color: pathLocked ? 'var(--text-dim)' : 'var(--text)',
-          }}
-        />
+        <FieldShell label="Name">
+          <input
+            value={param.name}
+            onChange={(event) => patch({ name: event.target.value })}
+            disabled={pathLocked}
+            style={{
+              ...inputStyle,
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 500,
+              color: pathLocked ? 'var(--text-dim)' : 'var(--text)',
+              cursor: pathLocked ? 'not-allowed' : 'text',
+            }}
+          />
+        </FieldShell>
 
         {!isMobile && (
-          <select
-            value={param.type}
-            onChange={(event) => patch({ type: event.target.value })}
-            style={selectStyle}
-          >
-            {TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <SelectField label="Type" value={param.type} onChange={(type) => patch({ type })} />
         )}
 
         {!isMobile && (
-          <input
-            value={param.sample}
-            onChange={(event) => patch({ sample: event.target.value })}
-            placeholder="sample"
-            style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
-          />
+          <FieldShell label="Default value for testing">
+            <input
+              value={param.sample}
+              onChange={(event) => patch({ sample: event.target.value })}
+              style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+            />
+          </FieldShell>
         )}
 
         <button
@@ -118,32 +113,24 @@ export function ParamRow({ param, pathLocked, focused, onChange, onRemove }: Pro
           }}
         >
           {isMobile && (
-            <input
-              value={param.sample}
-              onChange={(event) => patch({ sample: event.target.value })}
-              placeholder="Sample"
-              style={inputStyle}
-            />
+            <FieldShell label="Default value for testing">
+              <input
+                value={param.sample}
+                onChange={(event) => patch({ sample: event.target.value })}
+                style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+              />
+            </FieldShell>
           )}
           {isMobile && (
-            <select
-              value={param.type}
-              onChange={(event) => patch({ type: event.target.value })}
-              style={selectStyle}
-            >
-              {TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
+            <SelectField label="Type" value={param.type} onChange={(type) => patch({ type })} />
           )}
-          <input
-            value={param.description}
-            onChange={(event) => patch({ description: event.target.value })}
-            placeholder="Description (helps the agent know when to use this)"
-            style={inputStyle}
-          />
+          <FieldShell label="Description">
+            <input
+              value={param.description}
+              onChange={(event) => patch({ description: event.target.value })}
+              style={inputStyle}
+            />
+          </FieldShell>
           {!pathLocked && (
             <div
               style={{
@@ -152,18 +139,20 @@ export function ParamRow({ param, pathLocked, focused, onChange, onRemove }: Pro
                 gap: 8,
               }}
             >
-              <input
-                value={param.defaultValue}
-                onChange={(event) => patch({ defaultValue: event.target.value })}
-                placeholder="Default"
-                style={inputStyle}
-              />
-              <input
-                value={param.enumText}
-                onChange={(event) => patch({ enumText: event.target.value })}
-                placeholder="Enum (a, b, c)"
-                style={inputStyle}
-              />
+              <FieldShell label="Default">
+                <input
+                  value={param.defaultValue}
+                  onChange={(event) => patch({ defaultValue: event.target.value })}
+                  style={inputStyle}
+                />
+              </FieldShell>
+              <FieldShell label="Enum values">
+                <input
+                  value={param.enumText}
+                  onChange={(event) => patch({ enumText: event.target.value })}
+                  style={inputStyle}
+                />
+              </FieldShell>
             </div>
           )}
           {!pathLocked && (
@@ -216,6 +205,44 @@ export function ParamRow({ param, pathLocked, focused, onChange, onRemove }: Pro
         </div>
       )}
     </div>
+  )
+}
+
+function FieldShell({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={fieldShellStyle}>
+      <span style={fieldLabelStyle}>{label}</span>
+      {children}
+    </label>
+  )
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <FieldShell label={label}>
+      <span style={selectShellStyle}>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          style={selectStyle}
+        >
+          {TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={13} aria-hidden="true" style={selectIconStyle} />
+      </span>
+    </FieldShell>
   )
 }
 
@@ -297,6 +324,21 @@ const iconButtonStyle: React.CSSProperties = {
   padding: 0,
 }
 
+const fieldShellStyle: React.CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const fieldLabelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  color: 'var(--text-faint)',
+  textTransform: 'uppercase',
+  letterSpacing: 0.4,
+  lineHeight: 1,
+}
+
 const inputStyle: React.CSSProperties = {
   width: '100%',
   minWidth: 0,
@@ -311,13 +353,10 @@ const inputStyle: React.CSSProperties = {
   padding: '0 8px',
 }
 
-const nameInputStyle: React.CSSProperties = {
-  ...inputStyle,
-  fontFamily: 'var(--font-mono)',
-  fontWeight: 500,
-  background: 'transparent',
-  border: '1px solid transparent',
-  padding: '0 6px',
+const selectShellStyle: React.CSSProperties = {
+  position: 'relative',
+  display: 'block',
+  minWidth: 0,
 }
 
 const selectStyle: React.CSSProperties = {
@@ -328,4 +367,13 @@ const selectStyle: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
   color: 'var(--text-dim)',
   cursor: 'pointer',
+}
+
+const selectIconStyle: React.CSSProperties = {
+  position: 'absolute',
+  right: 8,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  color: 'var(--text-faint)',
+  pointerEvents: 'none',
 }

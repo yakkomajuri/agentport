@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { api, type ApiParam, type ApiToolDefinition, type CustomApiTestResult } from '@/api/client'
+import {
+  api,
+  type ApiParam,
+  type ApiToolDefinition,
+  type CustomApiIntegration,
+  type CustomApiTestResult,
+} from '@/api/client'
 import { ConnectionPanel } from '@/components/custom-api/ConnectionPanel'
 import { IntegrationHeader } from '@/components/custom-api/IntegrationHeader'
 import { TitleBlock } from '@/components/custom-api/TitleBlock'
@@ -12,41 +18,60 @@ import { useConnectionsStore } from '@/stores/connections'
 
 const PATH_PARAM_RE = /\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g
 
+function initialInstallToken(state: unknown): string {
+  if (typeof state !== 'object' || state === null) return ''
+  const token = (state as { installToken?: unknown }).installToken
+  return typeof token === 'string' ? token : ''
+}
+
+function isNoAuthConfig(tokenHeader: string, tokenFormat: string): boolean {
+  return !tokenHeader.trim() && !tokenFormat.trim()
+}
+
 export default function CustomApiBuilderPage() {
   const { integrationDbId } = useParams<{ integrationDbId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const isMobile = useIsMobile()
+  const installed = useConnectionsStore((s) => s.installed)
+  const install = useConnectionsStore((s) => s.install)
   const updateCustomApi = useConnectionsStore((s) => s.updateCustomApi)
-  const fetchCustomApi = useConnectionsStore((s) => s.fetchCustomApi)
-  const fetchIntegrations = useConnectionsStore((s) => s.fetchIntegrations)
+  const fetchInstalled = useConnectionsStore((s) => s.fetchInstalled)
 
+  const [customIntegrationId, setCustomIntegrationId] = useState('')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [baseUrl, setBaseUrl] = useState('')
   const [tokenHeader, setTokenHeader] = useState('Authorization')
   const [tokenFormat, setTokenFormat] = useState('Bearer {token}')
-  const [testToken, setTestToken] = useState('')
+  const [testToken, setTestToken] = useState(() => initialInstallToken(location.state))
   const [tools, setTools] = useState<DraftTool[]>([])
   const [snapshot, setSnapshot] = useState('')
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [installing, setInstalling] = useState(false)
   const [error, setError] = useState('')
+  const lastAutosaveAttemptRef = useRef('')
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
 
   const currentSnapshot = useMemo(
     () => stateSnapshot({ name, description, baseUrl, tokenHeader, tokenFormat, tools }),
     [name, description, baseUrl, tokenHeader, tokenFormat, tools],
   )
   const dirty = currentSnapshot !== snapshot
+  const installedEntry = customIntegrationId
+    ? installed.find((item) => item.integration_id === customIntegrationId)
+    : undefined
+  const needsInstall = !!customIntegrationId && !installedEntry
 
   useEffect(() => {
     if (!integrationDbId) return
     let cancelled = false
     setLoading(true)
-    api.customApi
-      .get(integrationDbId)
-      .then((item) => {
+    Promise.all([api.customApi.get(integrationDbId), fetchInstalled()])
+      .then(([item]) => {
         if (cancelled) return
         const loadedTools = item.tools.length ? item.tools.map(toolToDraft) : [newTool(1)]
+        setCustomIntegrationId(item.integration_id)
         setName(item.name)
         setDescription(item.description ?? '')
         setBaseUrl(item.base_url)
@@ -71,57 +96,12 @@ export default function CustomApiBuilderPage() {
     return () => {
       cancelled = true
     }
-  }, [integrationDbId])
+  }, [fetchInstalled, integrationDbId])
 
-  useEffect(() => {
-    if (!dirty) return
-    function handleBeforeUnload(event: BeforeUnloadEvent) {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [dirty])
-
-  function resetToSnapshot() {
-    const parsed = JSON.parse(snapshot) as Snapshot
-    setName(parsed.name)
-    setDescription(parsed.description)
-    setBaseUrl(parsed.baseUrl)
-    setTokenHeader(parsed.tokenHeader)
-    setTokenFormat(parsed.tokenFormat)
-    setTools(parsed.tools.map(snapshotToolToDraft))
-    setError('')
-  }
-
-  function handleBack() {
-    if (dirty && !window.confirm('Discard unsaved changes?')) return
-    navigate('/integrations')
-  }
-
-  async function handleSave() {
-    if (!integrationDbId) return
-    if (!name.trim()) {
-      setError('Name is required')
-      return
-    }
-    if (!baseUrl.trim()) {
-      setError('Base URL is required')
-      return
-    }
-    setSaving(true)
-    setError('')
-    try {
-      const payload = {
-        name: name.trim(),
-        description: description.trim() || null,
-        base_url: baseUrl.trim(),
-        token_header: tokenHeader.trim(),
-        token_format: tokenFormat,
-        tools: tools.map(apiToolFromDraft),
-      }
-      const saved = await updateCustomApi(integrationDbId, payload)
+  const applySavedCustomApi = useCallback(
+    (saved: CustomApiIntegration) => {
       const loadedTools = saved.tools.length ? saved.tools.map(toolToDraft) : tools
+      setCustomIntegrationId(saved.integration_id)
       setName(saved.name)
       setDescription(saved.description ?? '')
       setBaseUrl(saved.base_url)
@@ -138,11 +118,115 @@ export default function CustomApiBuilderPage() {
           tools: loadedTools,
         }),
       )
-      await Promise.all([fetchCustomApi(), fetchIntegrations()])
+    },
+    [tools],
+  )
+
+  const saveCustomApi = useCallback(
+    async ({
+      applyResponse = true,
+      reportError = true,
+    }: {
+      applyResponse?: boolean
+      reportError?: boolean
+    } = {}) => {
+      if (!integrationDbId) return null
+      const submittedSnapshot = currentSnapshot
+
+      if (!name.trim()) {
+        if (reportError) setError('Name is required')
+        return null
+      }
+      if (!baseUrl.trim()) {
+        if (reportError) setError('Base URL is required')
+        return null
+      }
+
+      const payload = {
+        name: name.trim(),
+        description: description.trim() || null,
+        base_url: baseUrl.trim(),
+        token_header: tokenHeader.trim(),
+        token_format: tokenFormat,
+        tools: tools.map(apiToolFromDraft),
+      }
+
+      const run = async () => {
+        const saved = await updateCustomApi(integrationDbId, payload)
+        if (applyResponse) {
+          applySavedCustomApi(saved)
+        } else {
+          setCustomIntegrationId(saved.integration_id)
+          setSnapshot(submittedSnapshot)
+        }
+        lastAutosaveAttemptRef.current = ''
+        return saved
+      }
+
+      const queued = saveQueueRef.current.catch(() => undefined).then(run)
+      saveQueueRef.current = queued.then(
+        () => undefined,
+        () => undefined,
+      )
+      return queued
+    },
+    [
+      applySavedCustomApi,
+      baseUrl,
+      currentSnapshot,
+      description,
+      integrationDbId,
+      name,
+      tokenFormat,
+      tokenHeader,
+      tools,
+      updateCustomApi,
+    ],
+  )
+
+  useEffect(() => {
+    if (loading || !dirty || currentSnapshot === lastAutosaveAttemptRef.current) return
+    const timer = window.setTimeout(() => {
+      lastAutosaveAttemptRef.current = currentSnapshot
+      void saveCustomApi({ applyResponse: false, reportError: false }).catch(() => {})
+    }, 700)
+    return () => window.clearTimeout(timer)
+  }, [currentSnapshot, dirty, loading, saveCustomApi])
+
+  async function handleBack() {
+    if (dirty) {
+      await saveCustomApi({ applyResponse: false, reportError: false }).catch(() => {})
+    }
+    navigate('/integrations')
+  }
+
+  async function handleInstall() {
+    const installingWithToken = needsInstall && !isNoAuthConfig(tokenHeader, tokenFormat)
+    if (installingWithToken && !testToken) {
+      setError('Token is required to install this integration')
+      return
+    }
+
+    setInstalling(true)
+    setError('')
+    try {
+      const saved = await saveCustomApi()
+      if (!saved) return
+
+      if (needsInstall) {
+        const authMethod = isNoAuthConfig(saved.token_header, saved.token_format) ? 'none' : 'token'
+        await install({
+          integration_id: saved.integration_id,
+          auth_method: authMethod,
+          token: authMethod === 'token' ? testToken : undefined,
+        })
+        setTestToken('')
+        navigate(`/integrations/${encodeURIComponent(saved.integration_id)}`, { replace: true })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save custom API')
     } finally {
-      setSaving(false)
+      setInstalling(false)
     }
   }
 
@@ -161,7 +245,7 @@ export default function CustomApiBuilderPage() {
   }
 
   async function runTool(tool: DraftTool) {
-    const validationError = validateRunInput(tool, baseUrl, tokenHeader, tokenFormat, testToken)
+    const validationError = validateRunInput(tool, baseUrl, tokenHeader, tokenFormat)
     if (validationError) {
       setToolResult(tool.id, {
         content: [{ type: 'text', text: validationError }],
@@ -179,6 +263,7 @@ export default function CustomApiBuilderPage() {
         token_header: tokenHeader.trim(),
         token_format: tokenFormat,
         token: testToken,
+        integration_db_id: integrationDbId,
         tool: apiToolFromDraft(tool),
         args: sampleArgs(tool),
       })
@@ -218,12 +303,10 @@ export default function CustomApiBuilderPage() {
   return (
     <>
       <IntegrationHeader
-        dirty={dirty}
-        saving={saving}
-        isNew={false}
+        installing={installing}
+        showInstall={needsInstall}
         error={error}
-        onSave={handleSave}
-        onDiscard={resetToSnapshot}
+        onInstall={handleInstall}
         onBack={handleBack}
       />
       <div
@@ -254,6 +337,10 @@ export default function CustomApiBuilderPage() {
             tokenHeader={tokenHeader}
             tokenFormat={tokenFormat}
             testToken={testToken}
+            tokenLabel={needsInstall ? 'Token' : 'Override token'}
+            tokenPlaceholder={
+              needsInstall ? 'Paste token...' : 'Leave blank to use the installed token'
+            }
             onBaseUrlChange={setBaseUrl}
             onTokenHeaderChange={setTokenHeader}
             onTokenFormatChange={setTokenFormat}
@@ -384,15 +471,6 @@ function stateSnapshot(data: Snapshot): string {
   })
 }
 
-function snapshotToolToDraft(tool: SnapshotTool): DraftTool {
-  return {
-    ...tool,
-    id: crypto.randomUUID(),
-    expanded: true,
-    params: tool.params.map((param) => ({ ...param, id: crypto.randomUUID(), sample: '' })),
-  }
-}
-
 function newTool(index: number): DraftTool {
   return {
     id: crypto.randomUUID(),
@@ -478,14 +556,13 @@ function validateRunInput(
   baseUrl: string,
   tokenHeader: string,
   tokenFormat: string,
-  testToken: string,
 ): string | null {
   if (!baseUrl.trim()) return 'Base URL is required.'
   const noAuth = !tokenHeader.trim() && !tokenFormat.trim()
   if (!noAuth) {
     if (!tokenHeader.trim()) return 'Token header is required.'
     if (!tokenFormat.includes('{token}')) return 'Token format must contain {token}.'
-    if (!testToken.trim()) return 'Test token is required.'
+    // Token may be empty here — the server falls back to the installed token.
   }
   if (!tool.name.trim()) return 'Tool name is required.'
   if (!tool.path.trim().startsWith('/')) return 'Path must start with /.'

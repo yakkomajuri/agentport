@@ -161,6 +161,7 @@ export interface TestCustomApiRequest {
   token_header: string
   token_format: string
   token: string
+  integration_db_id?: string
   tool: ApiToolDefinition
   args: Record<string, unknown>
 }

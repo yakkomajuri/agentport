@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Globe, KeyRound, Plug } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Globe, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useConnectionsStore } from '@/stores/connections'
 
@@ -48,8 +48,6 @@ const PRESETS: PresetConfig[] = [
 export default function CustomApiSetupPage() {
   const navigate = useNavigate()
   const createCustomApi = useConnectionsStore((s) => s.createCustomApi)
-  const fetchCustomApi = useConnectionsStore((s) => s.fetchCustomApi)
-  const fetchIntegrations = useConnectionsStore((s) => s.fetchIntegrations)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -57,6 +55,7 @@ export default function CustomApiSetupPage() {
   const [preset, setPreset] = useState<AuthPreset>('bearer')
   const [tokenHeader, setTokenHeader] = useState('Authorization')
   const [tokenFormat, setTokenFormat] = useState('Bearer {token}')
+  const [token, setToken] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -109,8 +108,10 @@ export default function CustomApiSetupPage() {
         token_format: tokenFormat,
         tools: [],
       })
-      await Promise.all([fetchCustomApi(), fetchIntegrations()])
-      navigate(`/integrations/custom-api/${created.id}`, { replace: true })
+      navigate(`/integrations/custom-api/${created.id}`, {
+        replace: true,
+        state: { installToken: preset === 'none' ? '' : token },
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create integration')
       setSaving(false)
@@ -162,51 +163,29 @@ export default function CustomApiSetupPage() {
             style={{
               padding: '24px 28px 20px',
               borderBottom: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 14,
             }}
           >
-            <div
+            <h1
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 8,
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-dim)',
-                flexShrink: 0,
+                margin: 0,
+                fontSize: 17,
+                fontWeight: 600,
+                color: 'var(--text)',
+                lineHeight: 1.3,
               }}
             >
-              <Plug size={16} />
-            </div>
-            <div>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: 17,
-                  fontWeight: 600,
-                  color: 'var(--text)',
-                  lineHeight: 1.3,
-                }}
-              >
-                New custom API
-              </h1>
-              <p
-                style={{
-                  margin: '4px 0 0',
-                  fontSize: 13,
-                  color: 'var(--text-dim)',
-                  lineHeight: 1.5,
-                }}
-              >
-                Connect a REST endpoint so agents can call it as tools. You'll add the individual
-                tools in the next step.
-              </p>
-            </div>
+              New API integration
+            </h1>
+            <p
+              style={{
+                margin: '4px 0 0',
+                fontSize: 13,
+                color: 'var(--text-dim)',
+                lineHeight: 1.5,
+              }}
+            >
+              Create a new integration from an API.
+            </p>
           </div>
 
           {/* Form fields */}
@@ -316,6 +295,38 @@ export default function CustomApiSetupPage() {
                 )}
               </div>
             </Field>
+
+            {preset !== 'none' && (
+              <Field label="Token" htmlFor="token">
+                <div style={{ position: 'relative' }}>
+                  <KeyRound
+                    size={13}
+                    style={{
+                      position: 'absolute',
+                      left: 11,
+                      top: 11,
+                      color: 'var(--text-faint)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <input
+                    id="token"
+                    type="password"
+                    value={token}
+                    onChange={(event) => setToken(event.target.value)}
+                    placeholder="sk_live_…"
+                    autoComplete="off"
+                    spellCheck={false}
+                    style={{
+                      ...inputStyle,
+                      paddingLeft: 32,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12.5,
+                    }}
+                  />
+                </div>
+              </Field>
+            )}
           </div>
 
           {/* Error + actions */}
@@ -370,7 +381,7 @@ export default function CustomApiSetupPage() {
                 Cancel
               </Button>
               <Button type="submit" size="sm" disabled={saving}>
-                <span>{saving ? 'Creating…' : 'Continue'}</span>
+                <span>{saving ? 'Creating…' : 'Next'}</span>
                 {!saving && <ArrowRight size={13} style={{ marginLeft: 6 }} />}
               </Button>
             </div>
