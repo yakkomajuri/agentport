@@ -171,6 +171,7 @@ async def execute_upstream_tool(
                         api_key_prefix=api_key_prefix,
                         impersonator_user_id=impersonator_user_id,
                         additional_info=additional_info,
+                        matched_rule_id=decision.matched_rule_id,
                     )
                 )
                 session.commit()
@@ -197,6 +198,7 @@ async def execute_upstream_tool(
                     user_agent=user_agent,
                     api_key_label=api_key_label,
                     additional_info=additional_info,
+                    matched_rule_id=decision.matched_rule_id,
                 )
 
                 # Create a pending log entry so the request shows up in the logs immediately.
@@ -222,6 +224,7 @@ async def execute_upstream_tool(
                             api_key_prefix=api_key_prefix,
                             impersonator_user_id=impersonator_user_id,
                             additional_info=additional_info,
+                            matched_rule_id=decision.matched_rule_id,
                         )
                     )
                     session.commit()
@@ -262,6 +265,7 @@ async def execute_upstream_tool(
                 api_key_label=api_key_label,
                 api_key_prefix=api_key_prefix,
                 additional_info=additional_info,
+                matched_rule_id=decision.matched_rule_id,
             )
             auto_approval_id = auto_req.id
 

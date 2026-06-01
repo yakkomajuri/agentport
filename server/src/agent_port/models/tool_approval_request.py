@@ -44,3 +44,6 @@ class ToolApprovalRequest(SQLModel, table=True):
     # Optional free-text explanation supplied by the caller at request time
     # (e.g. "I need this to decide between A and B"). Helps humans judge the call.
     additional_info: str | None = None
+    # The conditional policy rule that produced this request's decision, if any.
+    # Null when the decision came from the fallback ToolExecutionSetting.mode.
+    matched_rule_id: uuid.UUID | None = None

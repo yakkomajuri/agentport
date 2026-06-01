@@ -40,6 +40,7 @@ from agent_port.api import (  # noqa: E402
     password_change,
     password_reset,
     tool_approvals,
+    tool_setting_rules,
     tool_settings,
     tools,
     totp,
@@ -169,6 +170,7 @@ app.include_router(installed.router)
 app.include_router(auth.router)
 app.include_router(tools.router)
 app.include_router(tool_settings.router)
+app.include_router(tool_setting_rules.router)
 app.include_router(org_settings.router)
 app.include_router(tool_approvals.router)
 app.include_router(logs.router)

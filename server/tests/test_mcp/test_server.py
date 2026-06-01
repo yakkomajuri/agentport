@@ -112,6 +112,59 @@ async def test_execute_upstream_tool_strips_additional_info(mcp_env):
 
 
 @pytest.mark.anyio
+async def test_mcp_call_denied_by_rule(mcp_env):
+    """A deny rule overrides the allow fallback on the MCP path."""
+    import json as _json
+
+    from agent_port.mcp.server import execute_upstream_tool
+    from agent_port.models.tool_execution_rule import (
+        ToolExecutionRule,
+        ToolExecutionRuleCondition,
+    )
+
+    engine, org = mcp_env
+    with Session(engine) as session:
+        rule = ToolExecutionRule(
+            org_id=org.id,
+            integration_id="posthog",
+            tool_name="create_annotation",
+            name="deny secrets",
+            effect="deny",
+            enabled=True,
+        )
+        session.add(rule)
+        session.commit()
+        session.refresh(rule)
+        session.add(
+            ToolExecutionRuleCondition(
+                rule_id=rule.id,
+                param_path="content",
+                operator="contains",
+                values_json=_json.dumps(["secret"]),
+            )
+        )
+        session.commit()
+        rule_id = rule.id
+
+    fake = AsyncMock(return_value={"content": [{"type": "text", "text": "ok"}]})
+    with patch("agent_port.mcp.server.mcp_client.call_tool", side_effect=fake):
+        result = await execute_upstream_tool(
+            "posthog", "create_annotation", {"content": "a secret"}
+        )
+
+    assert "blocked" in result[0].text.lower()
+    fake.assert_not_called()
+
+    with Session(engine) as session:
+        from agent_port.models.log import LogEntry
+
+        log = session.exec(select(LogEntry).where(LogEntry.org_id == org.id)).first()
+        assert log is not None
+        assert log.outcome == "denied"
+        assert log.matched_rule_id == rule_id
+
+
+@pytest.mark.anyio
 async def test_execute_upstream_tool_without_additional_info(mcp_env):
     """Calls that omit additional_info must still succeed and produce a clean log."""
     from agent_port.mcp.server import execute_upstream_tool

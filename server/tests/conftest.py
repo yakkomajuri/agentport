@@ -30,6 +30,10 @@ from agent_port.models.subscription import Subscription  # noqa: F401
 from agent_port.models.tool_approval_request import ToolApprovalRequest  # noqa: F401
 from agent_port.models.tool_cache import ToolCache  # noqa: F401
 from agent_port.models.tool_execution import ToolExecutionSetting  # noqa: F401
+from agent_port.models.tool_execution_rule import (  # noqa: F401
+    ToolExecutionRule,
+    ToolExecutionRuleCondition,
+)
 from agent_port.models.user import User
 
 

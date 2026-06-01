@@ -30,6 +30,7 @@ from agent_port.models.log import LogEntry
 from agent_port.models.oauth import OAuthState
 from agent_port.models.tool_cache import CACHE_TTL, ToolCache
 from agent_port.models.tool_execution import ToolExecutionSetting
+from agent_port.models.tool_execution_rule import ToolExecutionRule
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,22 @@ def _get_execution_modes(session: Session, org_id, integration_id: str) -> dict[
         .where(ToolExecutionSetting.integration_id == integration_id)
     ).all()
     return {setting.tool_name: setting.mode for setting in settings}
+
+
+def _get_rule_summaries(session: Session, org_id, integration_id: str) -> dict[str, dict]:
+    """Per-tool counts of total and enabled conditional policy rules."""
+    rules = session.exec(
+        select(ToolExecutionRule)
+        .where(ToolExecutionRule.org_id == org_id)
+        .where(ToolExecutionRule.integration_id == integration_id)
+    ).all()
+    summaries: dict[str, dict] = {}
+    for rule in rules:
+        entry = summaries.setdefault(rule.tool_name, {"total": 0, "enabled": 0})
+        entry["total"] += 1
+        if rule.enabled:
+            entry["enabled"] += 1
+    return summaries
 
 
 async def _get_tools_cached(
@@ -255,6 +272,7 @@ def _annotate_tools(
     integration_id: str,
 ) -> list[dict]:
     execution_modes = _get_execution_modes(session, org_id, integration_id)
+    rule_summaries = _get_rule_summaries(session, org_id, integration_id)
     categories: dict[str, str] = {}
     if integration_id:
         bundled = integration_registry.get(integration_id, org_id=org_id)
@@ -263,6 +281,10 @@ def _annotate_tools(
     for tool in tools:
         tool_name = tool.get("name", "")
         tool["execution_mode"] = execution_modes.get(tool_name, "require_approval")
+        summary = rule_summaries.get(tool_name, {"total": 0, "enabled": 0})
+        tool["policy_rule_count"] = summary["total"]
+        tool["policy_enabled_rule_count"] = summary["enabled"]
+        tool["policy_display_mode"] = "conditional" if summary["enabled"] > 0 else "default_only"
         if categories:
             tool["category"] = categories.get(tool_name)
     return tools
@@ -367,6 +389,7 @@ async def call_tool(
                 api_key_prefix=api_key_prefix,
                 impersonator_user_id=impersonator_user_id,
                 additional_info=body.additional_info,
+                matched_rule_id=decision.matched_rule_id,
             )
             session.add(log)
             session.commit()
@@ -402,6 +425,7 @@ async def call_tool(
                 body.args,
                 requested_by_agent=requested_by_agent,
                 additional_info=body.additional_info,
+                matched_rule_id=decision.matched_rule_id,
             )
             # Only create a log if one doesn't already exist for this approval request.
             # get_or_create_approval_request reuses existing pending requests, so if the
@@ -422,6 +446,7 @@ async def call_tool(
                     api_key_prefix=api_key_prefix,
                     impersonator_user_id=impersonator_user_id,
                     additional_info=body.additional_info,
+                    matched_rule_id=decision.matched_rule_id,
                 )
                 session.add(log)
                 session.commit()
@@ -457,6 +482,7 @@ async def call_tool(
             api_key_label=api_key_label,
             api_key_prefix=api_key_prefix,
             additional_info=body.additional_info,
+            matched_rule_id=decision.matched_rule_id,
         )
         auto_approval_id = auto_req.id
 
@@ -588,6 +614,7 @@ async def call_tool(
             api_key_prefix=api_key_prefix,
             impersonator_user_id=impersonator_user_id,
             additional_info=body.additional_info,
+            matched_rule_id=decision.matched_rule_id,
         )
         session.add(log)
         session.commit()

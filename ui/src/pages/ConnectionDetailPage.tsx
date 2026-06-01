@@ -11,11 +11,13 @@ import { LogDetailPanel } from '@/components/logs/LogDetailPanel'
 import type { LogEntry } from '@/api/client'
 import { ConnectDialog } from '@/components/connections/ConnectDialog'
 import { LOGOS } from '@/components/connections/IntegrationCard'
-import { api, type Tool } from '@/api/client'
+import { api, type Tool, type RuleWriteBody, type ToolExecutionRule } from '@/api/client'
 import { TOOL_MODES } from '@/lib/toolModes'
 import { useIsMobile } from '@/lib/useMediaQuery'
 import { isTotpChallengeError } from '@/lib/totpError'
 import { TotpCodeDialog } from '@/components/totp/TotpCodeDialog'
+import { ToolPolicySummaryBadge } from '@/components/policy/ToolPolicySummaryBadge'
+import { ToolPolicyExpandedRow } from '@/components/policy/ToolPolicyExpandedRow'
 
 const TYPE_LABELS: Record<string, string> = {
   remote_mcp: 'Remote MCP',
@@ -45,6 +47,7 @@ export default function ConnectionDetailPage() {
     error: toolsError,
     fetchForIntegration,
     patchToolMode,
+    patchToolRuleCounts,
     clear,
   } = useToolsStore()
   const { entries: logEntries, loading: logsLoading, fetch: fetchLogs } = useLogsStore()
@@ -61,6 +64,18 @@ export default function ConnectionDetailPage() {
   // Mark whether the current dialog close is from a successful submit so we
   // don't revert the optimistic updates that just persisted.
   const totpCommittedRef = useRef(false)
+
+  // ── Granular policy (per-tool conditional rules) ──
+  const [expandedPolicyToolName, setExpandedPolicyToolName] = useState<string | null>(null)
+  // Cache rules by tool name so collapsing/reopening a tool doesn't refetch.
+  const [rulesByTool, setRulesByTool] = useState<Record<string, ToolExecutionRule[]>>({})
+  const [rulesLoadingTool, setRulesLoadingTool] = useState<string | null>(null)
+  const [savingRule, setSavingRule] = useState(false)
+  // Rule writes that escalate to "allow" trigger the same TOTP gate as the
+  // fallback-mode escalation. We stash the retry closure here and replay it
+  // once the user supplies a code.
+  const [ruleTotpOpen, setRuleTotpOpen] = useState(false)
+  const ruleTotpRetryRef = useRef<((code: string) => Promise<void>) | null>(null)
 
   useEffect(() => {
     if (integrations.length === 0) fetchIntegrations()
@@ -232,6 +247,137 @@ export default function ConnectionDetailPage() {
     }
     totpCommittedRef.current = false
     setTotpDialogOpen(false)
+  }
+
+  // ── Rule cache + CRUD ──
+
+  function syncRuleCounts(toolName: string, rules: ToolExecutionRule[]) {
+    patchToolRuleCounts(toolName, rules.length, rules.filter((r) => r.enabled).length)
+  }
+
+  async function loadRules(toolName: string) {
+    if (!inst || rulesByTool[toolName]) return
+    setRulesLoadingTool(toolName)
+    try {
+      const rules = await api.toolSettings.listRules(inst.integration_id, toolName)
+      setRulesByTool((prev) => ({ ...prev, [toolName]: rules }))
+    } finally {
+      setRulesLoadingTool(null)
+    }
+  }
+
+  function toggleExpandPolicy(toolName: string) {
+    setExpandedPolicyToolName((prev) => {
+      const next = prev === toolName ? null : toolName
+      if (next) loadRules(next)
+      return next
+    })
+  }
+
+  function openRuleTotp(retry: (code: string) => Promise<void>) {
+    ruleTotpRetryRef.current = retry
+    setRuleTotpOpen(true)
+  }
+
+  async function handleRuleTotpSubmit(code: string) {
+    const retry = ruleTotpRetryRef.current
+    if (!retry) return
+    // Throws on invalid code → dialog stays open and surfaces the error.
+    await retry(code)
+    ruleTotpRetryRef.current = null
+  }
+
+  function handleRuleTotpClose() {
+    ruleTotpRetryRef.current = null
+    setRuleTotpOpen(false)
+  }
+
+  async function createRule(toolName: string, body: RuleWriteBody) {
+    if (!inst) return
+    const apply = (rule: ToolExecutionRule) =>
+      setRulesByTool((prev) => {
+        const next = [...(prev[toolName] ?? []), rule]
+        syncRuleCounts(toolName, next)
+        return { ...prev, [toolName]: next }
+      })
+    setSavingRule(true)
+    try {
+      apply(await api.toolSettings.createRule(inst.integration_id, toolName, body))
+    } catch (e) {
+      if (isTotpChallengeError(e)) {
+        openRuleTotp(async (code) =>
+          apply(
+            await api.toolSettings.createRule(inst.integration_id, toolName, {
+              ...body,
+              totp_code: code,
+            }),
+          ),
+        )
+      } else {
+        throw e
+      }
+    } finally {
+      setSavingRule(false)
+    }
+  }
+
+  async function updateRule(toolName: string, ruleId: string, body: RuleWriteBody) {
+    if (!inst) return
+    const apply = (rule: ToolExecutionRule) =>
+      setRulesByTool((prev) => {
+        const next = (prev[toolName] ?? []).map((r) => (r.id === rule.id ? rule : r))
+        syncRuleCounts(toolName, next)
+        return { ...prev, [toolName]: next }
+      })
+    setSavingRule(true)
+    try {
+      apply(await api.toolSettings.updateRule(inst.integration_id, toolName, ruleId, body))
+    } catch (e) {
+      if (isTotpChallengeError(e)) {
+        openRuleTotp(async (code) =>
+          apply(
+            await api.toolSettings.updateRule(inst.integration_id, toolName, ruleId, {
+              ...body,
+              totp_code: code,
+            }),
+          ),
+        )
+      } else {
+        throw e
+      }
+    } finally {
+      setSavingRule(false)
+    }
+  }
+
+  async function deleteRule(toolName: string, ruleId: string) {
+    if (!inst) return
+    await api.toolSettings.deleteRule(inst.integration_id, toolName, ruleId)
+    setRulesByTool((prev) => {
+      const next = (prev[toolName] ?? []).filter((r) => r.id !== ruleId)
+      syncRuleCounts(toolName, next)
+      return { ...prev, [toolName]: next }
+    })
+  }
+
+  function renderPolicyExpanded(tool: ToolWithMode) {
+    return (
+      <ToolPolicyExpandedRow
+        toolName={tool.name}
+        fallbackMode={tool.execution_mode || 'require_approval'}
+        rules={rulesByTool[tool.name] ?? []}
+        rulesLoading={rulesLoadingTool === tool.name && !rulesByTool[tool.name]}
+        savingRule={savingRule}
+        fallbackUpdating={updating === tool.name}
+        onSetFallback={(mode) =>
+          setMode(tool.name, mode, tool.execution_mode || 'require_approval')
+        }
+        onCreateRule={(body) => createRule(tool.name, body)}
+        onUpdateRule={(ruleId, body) => updateRule(tool.name, ruleId, body)}
+        onDeleteRule={(ruleId) => deleteRule(tool.name, ruleId)}
+        onToggleRule={(rule) => updateRule(tool.name, rule.id, { enabled: !rule.enabled })}
+      />
+    )
   }
 
   async function handleDisconnect() {
@@ -585,12 +731,22 @@ export default function ConnectionDetailPage() {
                           updating={updating}
                           onSetMode={setMode}
                           onSetCategoryMode={setCategoryMode}
+                          expandedToolName={expandedPolicyToolName}
+                          onToggleExpand={toggleExpandPolicy}
+                          renderExpanded={renderPolicyExpanded}
                         />
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <ToolList tools={filteredTools} updating={updating} onSetMode={setMode} />
+                  <ToolList
+                    tools={filteredTools}
+                    updating={updating}
+                    onSetMode={setMode}
+                    expandedToolName={expandedPolicyToolName}
+                    onToggleExpand={toggleExpandPolicy}
+                    renderExpanded={renderPolicyExpanded}
+                  />
                 )}
               </div>
             )}
@@ -690,6 +846,14 @@ export default function ConnectionDetailPage() {
         confirmLabel="Allow"
         onClose={handleTotpClose}
         onSubmit={handleTotpSubmit}
+      />
+      <TotpCodeDialog
+        open={ruleTotpOpen}
+        title="Confirm allow rule"
+        description="Enter your authenticator code to save a rule that allows auto-execution."
+        confirmLabel="Allow"
+        onClose={handleRuleTotpClose}
+        onSubmit={handleRuleTotpSubmit}
       />
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </>
@@ -898,63 +1062,118 @@ function ToolRow({
   tool,
   updating,
   onSetMode,
+  expanded,
+  onToggleExpand,
+  expandedContent,
 }: {
   tool: ToolWithMode
   updating: string | null
   onSetMode: (name: string, newMode: string, currentMode: string) => void
+  expanded: boolean
+  onToggleExpand: (name: string) => void
+  expandedContent?: React.ReactNode
 }) {
   const mode = tool.execution_mode || 'require_approval'
   const isUpdating = updating === tool.name
+  const enabledRules = tool.policy_enabled_rule_count ?? 0
   return (
-    <div
-      style={{
-        margin: '0 -4px',
-        padding: '10px 12px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        borderRadius: 6,
-        transition: 'background 120ms',
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'var(--text)',
-            fontFamily: '"SF Mono", "Fira Code", monospace',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {tool.title || tool.name}
-        </div>
-        {tool.description && (
+    <div>
+      <div
+        style={{
+          margin: '0 -4px',
+          padding: '10px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          borderRadius: 6,
+          transition: 'background 120ms',
+          background: expanded ? 'var(--surface-hover)' : 'transparent',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+        onMouseLeave={(e) =>
+          (e.currentTarget.style.background = expanded ? 'var(--surface-hover)' : 'transparent')
+        }
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: 12,
-              color: 'var(--text-faint)',
-              marginTop: 2,
-              lineHeight: 1.4,
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--text)',
+              fontFamily: '"SF Mono", "Fira Code", monospace',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
             }}
           >
-            {tool.description}
+            {tool.title || tool.name}
           </div>
-        )}
+          {tool.description && (
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-faint)',
+                marginTop: 2,
+                lineHeight: 1.4,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tool.description}
+            </div>
+          )}
+        </div>
+        <ToolPolicySummaryBadge tool={tool} />
+        <ModeSelect
+          mode={mode}
+          disabled={isUpdating}
+          onChange={(newMode) => onSetMode(tool.name, newMode, mode)}
+        />
+        <span
+          style={{
+            fontSize: 11,
+            color: enabledRules > 0 ? 'var(--text-dim)' : 'var(--text-faint)',
+            width: 64,
+            textAlign: 'right',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {enabledRules > 0 ? `${enabledRules} enabled` : '—'}
+        </span>
+        <button
+          type="button"
+          onClick={() => onToggleExpand(tool.name)}
+          aria-expanded={expanded}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 11,
+            fontWeight: 500,
+            color: expanded ? 'var(--accent)' : 'var(--text-dim)',
+            border: '1px solid var(--border)',
+            borderRadius: 5,
+            background: 'transparent',
+            padding: '4px 8px',
+            cursor: 'pointer',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <ChevronRight
+            size={12}
+            style={{
+              transition: 'transform 150ms',
+              transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            }}
+          />
+          Advanced
+        </button>
       </div>
-      <ModeSelect
-        mode={mode}
-        disabled={isUpdating}
-        onChange={(newMode) => onSetMode(tool.name, newMode, mode)}
-      />
+      {expanded && expandedContent}
     </div>
   )
 }
@@ -963,15 +1182,29 @@ function ToolList({
   tools,
   updating,
   onSetMode,
+  expandedToolName,
+  onToggleExpand,
+  renderExpanded,
 }: {
   tools: ToolWithMode[]
   updating: string | null
   onSetMode: (name: string, newMode: string, currentMode: string) => void
+  expandedToolName: string | null
+  onToggleExpand: (name: string) => void
+  renderExpanded: (tool: ToolWithMode) => React.ReactNode
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       {tools.map((tool) => (
-        <ToolRow key={tool.name} tool={tool} updating={updating} onSetMode={onSetMode} />
+        <ToolRow
+          key={tool.name}
+          tool={tool}
+          updating={updating}
+          onSetMode={onSetMode}
+          expanded={expandedToolName === tool.name}
+          onToggleExpand={onToggleExpand}
+          expandedContent={expandedToolName === tool.name ? renderExpanded(tool) : null}
+        />
       ))}
     </div>
   )
@@ -983,12 +1216,18 @@ function CategoryGroup({
   updating,
   onSetMode,
   onSetCategoryMode,
+  expandedToolName,
+  onToggleExpand,
+  renderExpanded,
 }: {
   category: string
   tools: ToolWithMode[]
   updating: string | null
   onSetMode: (name: string, newMode: string, currentMode: string) => void
   onSetCategoryMode: (tools: ToolWithMode[], newMode: string) => void
+  expandedToolName: string | null
+  onToggleExpand: (name: string) => void
+  renderExpanded: (tool: ToolWithMode) => React.ReactNode
 }) {
   const [collapsed, setCollapsed] = useState(true)
 
@@ -1060,7 +1299,14 @@ function CategoryGroup({
             paddingTop: 4,
           }}
         >
-          <ToolList tools={tools} updating={updating} onSetMode={onSetMode} />
+          <ToolList
+            tools={tools}
+            updating={updating}
+            onSetMode={onSetMode}
+            expandedToolName={expandedToolName}
+            onToggleExpand={onToggleExpand}
+            renderExpanded={renderExpanded}
+          />
         </div>
       )}
     </div>
