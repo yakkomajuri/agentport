@@ -11,6 +11,8 @@ const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'))
 const GoogleCallbackPage = lazy(() => import('@/pages/GoogleCallbackPage'))
 const ConnectionsPage = lazy(() => import('@/pages/ConnectionsPage'))
 const ConnectionDetailPage = lazy(() => import('@/pages/ConnectionDetailPage'))
+const CustomApiBuilderPage = lazy(() => import('@/pages/CustomApiBuilderPage'))
+const CustomApiSetupPage = lazy(() => import('@/pages/CustomApiSetupPage'))
 const DeveloperPage = lazy(() => import('@/pages/DeveloperPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const BillingPage = lazy(() => import('@/pages/BillingPage'))
@@ -58,6 +60,11 @@ export default function App() {
           <Route path="/oauth/success" element={<OAuthSuccessPage />} />
           <Route element={<AppLayout />}>
             <Route path="/integrations" element={<ConnectionsPage />} />
+            <Route path="/integrations/custom-api/new" element={<CustomApiSetupPage />} />
+            <Route
+              path="/integrations/custom-api/:integrationDbId"
+              element={<CustomApiBuilderPage />}
+            />
             <Route path="/integrations/:integrationId" element={<ConnectionDetailPage />} />
             <Route path="/connect" element={<DeveloperPage />} />
             <Route path="/settings" element={<SettingsPage />} />

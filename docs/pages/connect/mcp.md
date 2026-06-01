@@ -158,6 +158,25 @@ If you're using AgentPort from a coding agent (Claude Code, Cursor, etc.), insta
 - Start `await_approval` immediately after sharing an approval URL — don't wait for chat reply.
 - Don't retry past a `deny`.
 
+## Debugging latency
+
+Self-hosted developers can profile the MCP gateway from `server/`:
+
+```bash
+uv run python scripts/mcp_speed_probe.py --api-key "$AGENTPORT_API_KEY"
+```
+
+The probe reports cold MCP session setup, warm MCP calls, REST comparison endpoints, and local tool-cache state. To focus on one integration and compare AgentPort against the upstream MCP server directly:
+
+```bash
+uv run python scripts/mcp_speed_probe.py \
+  --api-key "$AGENTPORT_API_KEY" \
+  --integration-id github \
+  --direct-upstream
+```
+
+The script is read-only by default. It only executes an integration tool if `--call-tool` is passed with `--integration-id`, `--tool-name`, and `--arguments`.
+
 ## MCP vs CLI
 
 - **MCP** is the right choice when your AI client speaks MCP natively (Claude Desktop, Claude Code, Cursor, VS Code). The agent gets discovery, calling, and approval polling as first-class tools.

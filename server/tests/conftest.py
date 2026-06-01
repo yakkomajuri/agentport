@@ -17,6 +17,7 @@ from agent_port.dependencies import (
 )
 from agent_port.main import app
 from agent_port.models.api_key import ApiKey  # noqa: F401
+from agent_port.models.custom_api_integration import CustomApiIntegration  # noqa: F401
 from agent_port.models.google_login_state import GoogleLoginState  # noqa: F401
 from agent_port.models.integration import InstalledIntegration  # noqa: F401
 from agent_port.models.log import LogEntry  # noqa: F401
@@ -58,6 +59,7 @@ _ENGINE_CONSUMER_MODULES = (
     "agent_port.db",
     "agent_port.api.tool_approvals",
     "agent_port.api_client",
+    "agent_port.integrations.registry",
     "agent_port.mcp.asgi",
     "agent_port.mcp.client",
     "agent_port.mcp.management_tools",

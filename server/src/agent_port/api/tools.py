@@ -519,7 +519,13 @@ async def call_tool(
             )
         for attempt in range(2):
             try:
-                result = await api_client.call_tool(installed, tool_def, body.args, oauth_state)
+                result = await api_client.call_tool(
+                    installed,
+                    tool_def,
+                    body.args,
+                    oauth_state,
+                    integration=bundled_int,
+                )
                 last_error = None
                 break
             except Exception as e:

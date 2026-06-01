@@ -105,6 +105,74 @@ export interface CustomMcpIntegration {
   created_at: string
 }
 
+export interface ApiParam {
+  name: string
+  type?: string
+  description?: string | null
+  required?: boolean
+  default?: unknown
+  enum?: string[] | null
+  items?: string | null
+  query?: boolean
+  schema_override?: Record<string, unknown> | null
+}
+
+export interface ApiToolDefinition {
+  name: string
+  description: string
+  method: string
+  path: string
+  params?: ApiParam[]
+}
+
+export interface CustomApiIntegration {
+  id: string
+  integration_id: string
+  name: string
+  description: string | null
+  base_url: string
+  token_header: string
+  token_format: string
+  tools: ApiToolDefinition[]
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateCustomApiRequest {
+  name: string
+  description?: string | null
+  base_url: string
+  token_header?: string
+  token_format?: string
+  tools?: ApiToolDefinition[]
+}
+
+export interface UpdateCustomApiRequest {
+  name?: string
+  description?: string | null
+  base_url?: string
+  token_header?: string
+  token_format?: string
+  tools?: ApiToolDefinition[]
+}
+
+export interface TestCustomApiRequest {
+  base_url: string
+  token_header: string
+  token_format: string
+  token: string
+  integration_db_id?: string
+  tool: ApiToolDefinition
+  args: Record<string, unknown>
+}
+
+export interface CustomApiTestResult {
+  content: { type: string; text: string }[]
+  isError: boolean
+  status_code?: number | null
+  duration_ms?: number
+}
+
 export interface CreateCustomMcpRequest {
   name: string
   url: string
@@ -477,6 +545,37 @@ export const api = {
     },
     remove(id: string) {
       return request<void>(`/integrations/custom/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    },
+  },
+  customApi: {
+    list() {
+      return request<CustomApiIntegration[]>('/integrations/custom-api')
+    },
+    create(data: CreateCustomApiRequest) {
+      return request<CustomApiIntegration>('/integrations/custom-api', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    },
+    get(id: string) {
+      return request<CustomApiIntegration>(`/integrations/custom-api/${encodeURIComponent(id)}`)
+    },
+    update(id: string, data: UpdateCustomApiRequest) {
+      return request<CustomApiIntegration>(`/integrations/custom-api/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+    },
+    remove(id: string) {
+      return request<void>(`/integrations/custom-api/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      })
+    },
+    test(data: TestCustomApiRequest) {
+      return request<CustomApiTestResult>('/integrations/custom-api/test', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
     },
   },
   installed: {

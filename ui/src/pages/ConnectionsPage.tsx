@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import { useConnectionsStore } from '@/stores/connections'
 import { IntegrationCard } from '@/components/connections/IntegrationCard'
 import { ConnectDialog } from '@/components/connections/ConnectDialog'
 import { AddCustomMcpDialog } from '@/components/connections/AddCustomMcpDialog'
+import { NewIntegrationChooser } from '@/components/connections/NewIntegrationChooser'
 import { useIsMobile } from '@/lib/useMediaQuery'
 import type { BundledIntegration } from '@/api/client'
 
 export default function ConnectionsPage() {
   const { integrations, installed, fetchIntegrations, fetchInstalled, fetchCustomMcp } =
     useConnectionsStore()
+  const fetchCustomApi = useConnectionsStore((s) => s.fetchCustomApi)
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [connectTarget, setConnectTarget] = useState<BundledIntegration | null>(null)
   const [addCustomOpen, setAddCustomOpen] = useState(false)
+  const [chooserOpen, setChooserOpen] = useState(false)
   const isMobile = useIsMobile()
   const gutter = isMobile ? 14 : 20
 
@@ -20,6 +25,7 @@ export default function ConnectionsPage() {
     fetchIntegrations()
     fetchInstalled()
     fetchCustomMcp()
+    fetchCustomApi()
   }, [])
 
   const connectedInstalledIds = new Set(
@@ -51,13 +57,13 @@ export default function ConnectionsPage() {
         <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>Integrations</span>
         <button
           type="button"
-          onClick={() => setAddCustomOpen(true)}
+          onClick={() => setChooserOpen(true)}
           style={{
             marginLeft: 'auto',
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            padding: '6px 10px',
+            padding: '6px 12px',
             borderRadius: 6,
             border: '1px solid var(--border)',
             background: 'var(--surface)',
@@ -69,7 +75,7 @@ export default function ConnectionsPage() {
           }}
         >
           <Plus size={13} />
-          Add custom MCP
+          New
         </button>
       </div>
 
@@ -231,6 +237,19 @@ export default function ConnectionsPage() {
               .integrations.find((i) => i.id === created.integration_id)
             if (fresh) setConnectTarget(fresh)
           })
+        }}
+      />
+
+      <NewIntegrationChooser
+        open={chooserOpen}
+        onClose={() => setChooserOpen(false)}
+        onPickMcp={() => {
+          setChooserOpen(false)
+          setAddCustomOpen(true)
+        }}
+        onPickApi={() => {
+          setChooserOpen(false)
+          navigate('/integrations/custom-api/new')
         }}
       />
     </>

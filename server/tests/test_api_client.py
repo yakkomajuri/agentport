@@ -5,11 +5,21 @@ from agent_port.api_client import (
     _build_query,
     _build_url,
     _extract_path_params,
+    call_tool,
     get_tool_def,
     list_tools,
     params_to_input_schema,
 )
-from agent_port.integrations.types import ApiTool, CustomIntegration, CustomTool, OAuthAuth, Param
+from agent_port.integrations.types import (
+    ApiTool,
+    CustomIntegration,
+    CustomTool,
+    OAuthAuth,
+    Param,
+    TokenAuth,
+)
+from agent_port.models.integration import InstalledIntegration
+from agent_port.secrets.records import upsert_secret
 
 
 @pytest.fixture
@@ -217,6 +227,64 @@ def test_get_tool_def_found(sample_integration):
 
 def test_get_tool_def_not_found(sample_integration):
     assert get_tool_def(sample_integration, "nonexistent") is None
+
+
+@pytest.mark.anyio
+async def test_call_tool_uses_configured_token_header(session, test_org, monkeypatch):
+    tool = ApiTool(
+        name="get_item",
+        description="Get item",
+        method="GET",
+        path="/items",
+    )
+    integration = CustomIntegration(
+        id="customapi_test",
+        name="Custom API",
+        base_url="https://api.example.com",
+        auth=[
+            TokenAuth(
+                method="token",
+                label="API token",
+                header="X-API-Key",
+                format="Token {token}",
+            )
+        ],
+        tools=[tool],
+    )
+    installed = InstalledIntegration(
+        org_id=test_org.id,
+        integration_id="customapi_test",
+        type="custom",
+        url="https://api.example.com",
+        auth_method="token",
+        connected=True,
+    )
+    session.add(installed)
+    session.flush()
+    secret = upsert_secret(
+        session,
+        org_id=test_org.id,
+        kind="integration_token",
+        ref=f"integrations/{test_org.id}/customapi_test/token",
+        value="abc123",
+    )
+    installed.token_secret_id = secret.id
+    session.add(installed)
+    session.commit()
+    session.refresh(installed)
+
+    captured: dict = {}
+
+    async def _dispatch(**kwargs):
+        captured.update(kwargs)
+        return {"content": [{"type": "text", "text": "ok"}], "isError": False}
+
+    monkeypatch.setattr("agent_port.api_client.dispatch_api_tool", _dispatch)
+
+    result = await call_tool(installed, tool, {}, integration=integration)
+
+    assert result["isError"] is False
+    assert captured["headers"] == {"X-API-Key": "Token abc123"}
 
 
 # ── CustomTool dispatch ────────────────────────────────────────────────
