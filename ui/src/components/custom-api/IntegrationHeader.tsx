@@ -9,13 +9,7 @@ interface Props {
   onBack: () => void
 }
 
-export function IntegrationHeader({
-  installing,
-  showInstall,
-  error,
-  onInstall,
-  onBack,
-}: Props) {
+export function IntegrationHeader({ installing, showInstall, error, onInstall, onBack }: Props) {
   return (
     <div
       style={{
