@@ -371,7 +371,13 @@ async def _dispatch_and_log(
             return [types.TextContent(type="text", text=f"Tool '{tool_name}' not found.")]
         for attempt in range(2):
             try:
-                result = await api_client.call_tool(installed, tool_def, arguments, oauth_state)
+                result = await api_client.call_tool(
+                    installed,
+                    tool_def,
+                    arguments,
+                    oauth_state,
+                    integration=bundled,
+                )
                 last_error = None
                 break
             except Exception as e:

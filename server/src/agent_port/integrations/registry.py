@@ -1,3 +1,5 @@
+import json
+
 from agent_port.integrations.bundled.amplitude import AmplitudeIntegration
 from agent_port.integrations.bundled.apify import ApifyIntegration
 from agent_port.integrations.bundled.asana import AsanaIntegration
@@ -48,6 +50,8 @@ from agent_port.integrations.bundled.webflow import WebflowIntegration
 from agent_port.integrations.bundled.wix import WixIntegration
 from agent_port.integrations.bundled.zapier import ZapierIntegration
 from agent_port.integrations.types import (
+    ApiTool,
+    CustomIntegration,
     Integration,
     OAuthAuth,
     RemoteMcpIntegration,
@@ -111,6 +115,7 @@ _INTEGRATIONS: dict[str, Integration] = {
 
 
 CUSTOM_PREFIX = "custom_"
+CUSTOM_API_PREFIX = "customapi_"
 
 
 def _custom_row_to_integration(row) -> RemoteMcpIntegration:
@@ -170,6 +175,60 @@ def _load_custom_rows_for_org(org_id) -> list[RemoteMcpIntegration]:
         return [_custom_row_to_integration(r) for r in rows]
 
 
+def _custom_api_row_to_integration(row) -> CustomIntegration:
+    from agent_port.token_auth import is_no_auth
+
+    tools = [ApiTool(**tool) for tool in json.loads(row.tools_json)]
+    auth: list = []
+    if not is_no_auth(row.token_header, row.token_format):
+        auth.append(
+            TokenAuth(
+                method="token",
+                label="API token",
+                header=row.token_header,
+                format=row.token_format,
+            )
+        )
+    return CustomIntegration(
+        id=row.integration_id,
+        name=row.name,
+        description=row.description,
+        base_url=row.base_url,
+        auth=auth,
+        tools=tools,
+    )
+
+
+def _load_custom_api_row(integration_id: str, org_id) -> CustomIntegration | None:
+    from sqlmodel import Session, select
+
+    from agent_port.db import engine
+    from agent_port.models.custom_api_integration import CustomApiIntegration
+
+    with Session(engine) as session:
+        row = session.exec(
+            select(CustomApiIntegration)
+            .where(CustomApiIntegration.org_id == org_id)
+            .where(CustomApiIntegration.integration_id == integration_id)
+        ).first()
+        if not row:
+            return None
+        return _custom_api_row_to_integration(row)
+
+
+def _load_custom_api_rows_for_org(org_id) -> list[CustomIntegration]:
+    from sqlmodel import Session, select
+
+    from agent_port.db import engine
+    from agent_port.models.custom_api_integration import CustomApiIntegration
+
+    with Session(engine) as session:
+        rows = session.exec(
+            select(CustomApiIntegration).where(CustomApiIntegration.org_id == org_id)
+        ).all()
+        return [_custom_api_row_to_integration(r) for r in rows]
+
+
 def get(integration_id: str, org_id=None) -> Integration | None:
     """Look up an integration by id.
 
@@ -178,6 +237,8 @@ def get(integration_id: str, org_id=None) -> Integration | None:
     """
     if integration_id in _INTEGRATIONS:
         return _INTEGRATIONS[integration_id]
+    if org_id is not None and integration_id.startswith(CUSTOM_API_PREFIX):
+        return _load_custom_api_row(integration_id, org_id)
     if org_id is not None and integration_id.startswith(CUSTOM_PREFIX):
         return _load_custom_row(integration_id, org_id)
     return None
@@ -187,4 +248,4 @@ def list_all(org_id=None) -> list[Integration]:
     bundled = list(_INTEGRATIONS.values())
     if org_id is None:
         return bundled
-    return bundled + _load_custom_rows_for_org(org_id)
+    return bundled + _load_custom_api_rows_for_org(org_id) + _load_custom_rows_for_org(org_id)

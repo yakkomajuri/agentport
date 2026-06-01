@@ -218,7 +218,7 @@ Browse the catalog of bundled integrations. Public — no auth required.
 List all available bundled integrations.
 
 **Query params:**
-- `type` — filter by integration type (`remote_mcp`, `api`)
+- `type` — filter by integration type (`remote_mcp`, `custom`)
 
 **Response:**
 ```json
@@ -241,6 +241,89 @@ List all available bundled integrations.
 ### `GET /api/integrations/{id}`
 
 Get a single bundled integration by ID (e.g. `github`, `posthog`).
+
+### Custom API definitions
+
+Custom API integrations are org-scoped REST integrations backed by declarative `ApiTool`
+definitions. They use token-in-header authentication only; the token itself is stored through
+the normal install flow, not on the definition.
+
+#### `GET /api/integrations/custom-api`
+
+List custom API definitions for the current org.
+
+#### `POST /api/integrations/custom-api`
+
+Create a custom API definition.
+
+**Body:**
+```json
+{
+  "name": "Example API",
+  "description": "Internal customer data",
+  "base_url": "https://api.example.com",
+  "token_header": "Authorization",
+  "token_format": "Bearer {token}",
+  "tools": [
+    {
+      "name": "get_customer",
+      "description": "Fetch one customer",
+      "method": "GET",
+      "path": "/v1/customers/{id}",
+      "params": [
+        { "name": "id", "type": "string", "required": true }
+      ]
+    }
+  ]
+}
+```
+
+#### `GET /api/integrations/custom-api/{id}`
+
+Return the full definition, including tools. `{id}` is the custom API definition UUID, not
+the catalog `integration_id`.
+
+#### `PATCH /api/integrations/custom-api/{id}`
+
+Update definition fields. If the integration is installed, changes to `base_url`, auth header,
+auth format, or tools refresh the tool cache and notify live MCP sessions.
+
+#### `DELETE /api/integrations/custom-api/{id}`
+
+Delete a definition. Returns `409` until the matching installed integration is uninstalled.
+
+#### `POST /api/integrations/custom-api/test`
+
+Run one draft `ApiTool` against the live upstream before saving. The submitted `token` is used
+only for this request and is not persisted.
+
+**Body:**
+```json
+{
+  "base_url": "https://api.example.com",
+  "token_header": "Authorization",
+  "token_format": "Bearer {token}",
+  "token": "sk_test_...",
+  "tool": {
+    "name": "get_customer",
+    "description": "Fetch one customer",
+    "method": "GET",
+    "path": "/v1/customers/{id}",
+    "params": [{ "name": "id", "required": true }]
+  },
+  "args": { "id": "cus_123" }
+}
+```
+
+**Response `200`:**
+```json
+{
+  "content": [{ "type": "text", "text": "{\n  \"id\": \"cus_123\"\n}" }],
+  "isError": false,
+  "status_code": 200,
+  "duration_ms": 184
+}
+```
 
 ---
 
